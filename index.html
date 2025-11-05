@@ -7,478 +7,402 @@
 <style>
   :root{
     --bg:#0f141b; --panel:#121a23; --ink:#e6eef7; --muted:#9fb3c9; --accent:#6ab0ff;
-    --line:#e6eef7; --grid:rgba(230,238,247,.12); --shadow:rgba(0,0,0,.35);
+    --grid:rgba(230,238,247,.12); --shadow:rgba(0,0,0,.35);
   }
-  *{box-sizing:border-box; -webkit-tap-highlight-color: transparent}
-  html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial}
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{height:100%;margin:0;background:#000;color:var(--ink);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial}
   .main{position:fixed; inset:0; height:100dvh; overflow:hidden; background:#000}
   canvas{position:absolute; inset:0; width:100%; height:100%; display:block; background:#000; touch-action:none}
 
-  /* HUD (esquina superior) */
-  .hud{
-    position:absolute; left:12px; top:12px; display:flex; gap:8px; z-index:5;
-  }
+  /* HUD */
+  .hud{position:absolute; left:12px; top:12px; display:flex; gap:8px; z-index:5}
   .chip{
-    display:flex; align-items:center; justify-content:center;
-    width:40px; height:40px; border-radius:12px;
-    background:rgba(16,23,34,.9); border:1px solid rgba(230,238,247,.1);
-    box-shadow:0 4px 14px var(--shadow); font-size:18px; cursor:pointer;
+    width:44px;height:44px;border-radius:14px;display:flex;align-items:center;justify-content:center;
+    background:rgba(16,23,34,.9);border:1px solid rgba(230,238,247,.12);
+    box-shadow:0 6px 16px var(--shadow);font-size:20px;cursor:pointer
   }
   .chip:active{transform:scale(.98)}
 
-  /* FAB play/pause */
-  .fab{
-    position:absolute; right:14px; bottom:88px; z-index:5;
-    width:64px; height:64px; border-radius:22px; font-size:26px;
-    display:flex; align-items:center; justify-content:center; cursor:pointer;
-    background:var(--accent); color:#06121e; border:none; box-shadow:0 10px 30px var(--shadow);
-  }
-
-  /* Bottom sheet */
+  /* Sheet */
   .sheet{
     position:absolute; left:0; right:0; bottom:0; z-index:6;
     background:var(--panel); border-top:1px solid var(--grid);
-    box-shadow:0 -12px 30px var(--shadow);
-    border-top-left-radius:16px; border-top-right-radius:16px;
-    touch-action:none;
+    box-shadow:0 -12px 30px var(--shadow); border-top-left-radius:16px; border-top-right-radius:16px;
+    height:92px; touch-action:none;
   }
-  .sheet .handle{width:44px; height:5px; background:rgba(230,238,247,.25); border-radius:999px; margin:10px auto}
-  .sheet .row{display:flex; align-items:center; gap:10px; padding:10px 14px; flex-wrap:wrap}
-  .sheet .lab{color:var(--muted); font-size:12px}
-  .sheet button, .sheet select{
-    background:#101722; border:1px solid rgba(230,238,247,.12); color:var(--ink);
-    padding:10px 12px; border-radius:12px;
-  }
-  .icon{width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center}
-  .seg{display:flex; gap:8px}
-  .seg button{min-width:40px}
-  .slider{appearance:none; width:100%; height:32px; background:transparent}
+  .handle{width:46px;height:5px;background:rgba(230,238,247,.25);border-radius:999px;margin:10px auto}
+  .row{display:flex;align-items:center;gap:10px;padding:10px 14px;flex-wrap:wrap}
+  .lab{color:var(--muted);font-size:12px}
+  .icon{width:44px;height:44px;border-radius:12px;background:#101722;border:1px solid rgba(230,238,247,.12);display:flex;align-items:center;justify-content:center}
+  .slider{appearance:none;width:100%;height:32px;background:transparent}
   .slider::-webkit-slider-runnable-track{height:4px;background:rgba(230,238,247,.2);border-radius:4px}
   .slider::-webkit-slider-thumb{appearance:none;width:20px;height:20px;border-radius:10px;background:#fff;margin-top:-8px;box-shadow:0 2px 8px var(--shadow)}
-  .tools{display:grid; grid-template-columns: 1fr 1fr; gap:8px; padding:0 14px 14px}
-  .palette{display:flex; gap:8px}
-  .dot{width:28px; height:28px; border-radius:50%; border:1px solid rgba(230,238,247,.2); cursor:pointer}
+  .content{height:calc(100% - 36px); overflow-y:auto} /* SCROLL INTERNO */
+
+  /* Lista de círculos (minimal) */
+  .list{padding:0 8px 12px}
+  .rowc{
+    display:grid; grid-template-columns:28px 40px 1fr; gap:8px; align-items:center;
+    padding:6px 6px; border-bottom:1px solid rgba(230,238,247,.06)
+  }
+  .tog{display:flex;align-items:center;justify-content:center}
+  .steppers{display:grid; grid-template-columns:repeat(6,34px); gap:6px}
+  .btn{height:34px;border-radius:10px;background:#101722;border:1px solid rgba(230,238,247,.12);color:var(--ink)}
 </style>
 </head>
 <body>
 <div class="main">
   <canvas id="cv"></canvas>
 
-  <!-- HUD (sin números) -->
+  <!-- HUD: 5 chips arriba (incluye Play) -->
   <div class="hud">
-    <div class="chip" id="hudCircles" title="Círculos">●</div>
-    <div class="chip" id="hudSpeed"   title="Velocidad">🐢</div>
-    <div class="chip" id="hudTrail"   title="Trayectoria">🌀</div>
-    <div class="chip" id="hudColor"   title="Color">🎨</div>
+    <div class="chip" id="btnPlay" title="Play/Pausa">▶︎</div>
+    <div class="chip" id="btnShape" title="Figura">♥︎</div>
+    <div class="chip" id="btnCircles" title="Círculos">●</div>
+    <div class="chip" id="btnSpeed"   title="Velocidad">🐢</div>
+    <div class="chip" id="btnColor"   title="Color">🎨</div>
   </div>
 
-  <!-- FAB -->
-  <button class="fab" id="fab">▶︎</button>
-
   <!-- Bottom sheet -->
-  <div class="sheet" id="sheet" style="height:92px">
+  <div class="sheet" id="sheet">
     <div class="handle"></div>
-
-    <!-- Colapsado: chips -->
-    <div class="row" id="collapsedRow">
-      <div class="seg">
-        <button class="icon" id="cDec">−</button>
-        <button class="icon" id="cInc">+</button>
-      </div>
-      <button class="icon" id="speedPreset">⚡</button>
-      <button class="icon" id="colorNow">🎨</button>
-      <button class="icon" id="moreBtn">⋯</button>
-    </div>
-
-    <!-- Expandido: controles -->
-    <div id="expanded" style="display:none">
-      <div class="row"><span class="lab">Círculos</span>
-        <input id="circles" class="slider" type="range" min="1" max="16" step="1" value="8">
+    <div class="content" id="sheetContent">
+      <!-- fila chips colapsado -->
+      <div class="row" id="collapsedRow">
+        <div class="icon" id="cDec">−</div>
+        <div class="icon" id="cInc">+</div>
+        <div class="icon" id="speedPreset">⚡</div>
+        <div class="icon" id="colorNow">🎨</div>
+        <div class="icon" id="moreBtn">⋯</div>
       </div>
 
-      <div class="row"><span class="lab">Velocidad</span>
-        <div class="seg">
-          <button data-v="0.05">🐢</button>
-          <button data-v="0.10">🙂</button>
-          <button data-v="0.25">🐇</button>
-          <button data-v="0.50">🚀</button>
+      <!-- expandido -->
+      <div id="expanded" style="display:none">
+        <div class="row"><span class="lab">Círculos</span>
+          <input id="circles" class="slider" type="range" min="1" max="16" step="1" value="8">
         </div>
-        <input id="speed" class="slider" type="range" min="0.02" max="1" step="0.02" value="0.10">
-      </div>
 
-      <div class="row"><span class="lab">Zoom</span>
-        <input id="zoom" class="slider" type="range" min="0.5" max="3" step="0.05" value="1">
-        <button id="recenter">Centrar</button>
-      </div>
-
-      <div class="row"><span class="lab">Trayectoria</span>
-        <label><input id="showTrace" type="checkbox" checked> Mostrar</label>
-        <input id="trail" class="slider" type="range" min="200" max="4000" step="100" value="1500">
-      </div>
-
-      <div class="row"><span class="lab">Círculos visibles</span>
-        <label><input id="showCircles" type="checkbox" checked> Mostrar</label>
-      </div>
-
-      <div class="row"><span class="lab">Color</span>
-        <div class="palette" id="palette">
-          <div class="dot" style="background:#e6eef7" data-c="#e6eef7"></div>
-          <div class="dot" style="background:#ff9ecb" data-c="#ff9ecb"></div>
-          <div class="dot" style="background:#ffd27a" data-c="#ffd27a"></div>
-          <div class="dot" style="background:#9cffb1" data-c="#9cffb1"></div>
-          <div class="dot" style="background:#9ecbff" data-c="#9ecbff"></div>
+        <div class="row"><span class="lab">Velocidad</span>
+          <div class="icon" data-v="0.05">🐢</div>
+          <div class="icon" data-v="0.10">🙂</div>
+          <div class="icon" data-v="0.25">🐇</div>
+          <div class="icon" data-v="0.50">🚀</div>
+          <input id="speed" class="slider" type="range" min="0.02" max="1" step="0.02" value="0.10">
         </div>
-        <label><input id="autoColor" type="checkbox"> Auto</label>
-        <button id="changeColor">Cambiar ahora</button>
-      </div>
 
-      <div class="row"><span class="lab">Figura</span>
-        <select id="shape">
-          <option value="heart" selected>Corazón</option>
-          <option value="star">Estrella 5</option>
-          <option value="triangle">Triángulo</option>
-          <option value="square">Cuadrado</option>
-          <option value="pentagon">Pentágono</option>
-          <option value="hexagon">Hexágono</option>
-          <option value="infinity">Infinito</option>
-          <option value="circle">Círculo</option>
-          <option value="batman">Batman</option>
-        </select>
-      </div>
+        <div class="row"><span class="lab">Zoom</span>
+          <input id="zoom" class="slider" type="range" min="0.5" max="3" step="0.05" value="1">
+          <button class="btn" id="recenter">Centrar</button>
+        </div>
 
-      <div class="tools">
-        <button id="savePNG">Guardar PNG</button>
-        <button id="closeSheet">Cerrar</button>
+        <div class="row"><span class="lab">Trayectoria</span>
+          <label><input id="showTrace" type="checkbox" checked> Mostrar</label>
+          <input id="trail" class="slider" type="range" min="200" max="4000" step="100" value="1500">
+          <label style="margin-left:auto"><input id="showCircles" type="checkbox" checked> Círculos visibles</label>
+        </div>
+
+        <div class="row"><span class="lab">Color</span>
+          <div class="icon pal" data-c="#e6eef7" style="background:#e6eef7"></div>
+          <div class="icon pal" data-c="#ff9ecb" style="background:#ff9ecb"></div>
+          <div class="icon pal" data-c="#ffd27a" style="background:#ffd27a"></div>
+          <div class="icon pal" data-c="#9cffb1" style="background:#9cffb1"></div>
+          <div class="icon pal" data-c="#9ecbff" style="background:#9ecbff"></div>
+          <label style="margin-left:auto"><input id="autoColor" type="checkbox"> Auto</label>
+          <button class="btn" id="changeColor">Cambiar</button>
+        </div>
+
+        <div class="row"><span class="lab">Figura</span>
+          <select id="shape">
+            <option value="heart" selected>♥︎</option>
+            <option value="star">★</option>
+            <option value="triangle">▲</option>
+            <option value="square">■</option>
+            <option value="pentagon">⬟</option>
+            <option value="hexagon">⬢</option>
+            <option value="infinity">∞</option>
+            <option value="circle">●</option>
+            <option value="batman">🦇</option>
+          </select>
+        </div>
+
+        <!-- Lista minimal de círculos -->
+        <div class="row"><span class="lab">Ajustes por círculo</span></div>
+        <div class="list" id="circleList"></div>
+
+        <div class="row" style="padding-bottom:28px">
+          <button class="btn" id="savePNG">Guardar PNG</button>
+          <button class="btn" id="closeSheet" style="margin-left:auto">Cerrar</button>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
 <script>
-/* ===== Estado ===== */
+/* ===== Estado básico ===== */
 const cvs = document.getElementById('cv');
 const ctx = cvs.getContext('2d');
 const dpi = devicePixelRatio||1;
-
 let W=0,H=0;
-let points=[], coeffs=[], order=[];
-let t=0, running=false, onlyLine=false;
+
+let t=0, running=false;
+let zoom=1, centerOffset={x:0,y:0};
 let showCircles=true, showTrace=true;
 let trace=[], traceMax=1500;
-let zoom=1, centerOffset={x:0,y:0};
-let currentColor = '#e6eef7';
-let autoColorTimer=null;
+let currentColor='#e6eef7', autoColorTimer=null;
+let circlesN=8, speed=0.10;
+
+let points=[], coeffs=[], order=[], highlightId=null;
 
 /* ===== Helpers ===== */
 const $ = s=>document.querySelector(s);
-function fmt(n){return Number(n).toFixed(2)}
-function rad2deg(r){return r*180/Math.PI}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
 function deg2rad(d){return d*Math.PI/180}
 
 /* ===== Resize (no reinicia) ===== */
-function sizeFromContainer(){
-  const rect = cvs.parentElement.getBoundingClientRect();
-  return {w: Math.max(1, Math.floor(rect.width*dpi)), h: Math.max(1, Math.floor(rect.height*dpi))};
-}
-let lastSize = {w:0,h:0};
 function resize(){
-  const s = sizeFromContainer();
-  const dw=Math.abs(s.w-lastSize.w), dh=Math.abs(s.h-lastSize.h);
-  if(dw<1 && dh<8) return; // ignora pequeños cambios (barra de iOS)
-  lastSize=s; W=s.w; H=s.h; cvs.width=W; cvs.height=H;
+  const r = cvs.parentElement.getBoundingClientRect();
+  const w=Math.max(1, Math.floor(r.width*dpi));
+  const h=Math.max(1, Math.floor(r.height*dpi));
+  if(Math.abs(cvs.width-w)<1 && Math.abs(cvs.height-h)<8) return;
+  W=w; H=h; cvs.width=W; cvs.height=H;
 }
-resize();
-addEventListener('resize', ()=>{ resize(); /* no rebuild */ }, {passive:true});
+resize(); addEventListener('resize', ()=>{ resize(); }, {passive:true});
 
-/* ===== Figuras ===== */
-function resamplePolyline(verts, N, close=true){
+/* ===== Curvas ===== */
+function resamplePolyline(verts,N,close=true){
   const P=verts.slice(); if(close) P.push(verts[0]);
   const L=[0]; let sum=0;
-  for(let i=1;i<P.length;i++){ sum+=Math.hypot(P[i][0]-P[i-1][0], P[i][1]-P[i-1][1]); L.push(sum); }
+  for(let i=1;i<P.length;i++){ sum+=Math.hypot(P[i][0]-P[i-1][0],P[i][1]-P[i-1][1]); L.push(sum); }
   const out=[];
   for(let i=0;i<N;i++){
     const d=i/N*sum; let j=1; while(j<L.length && L[j]<d) j++;
-    const t=(d-L[j-1])/(L[j]-L[j-1]||1);
-    out.push({x:P[j-1][0]*(1-t)+P[j][0]*t, y:P[j-1][1]*(1-t)+P[j][1]*t});
+    const u=(d-L[j-1])/(L[j]-L[j-1]||1);
+    out.push({x:P[j-1][0]*(1-u)+P[j][0]*u, y:P[j-1][1]*(1-u)+P[j][1]*u});
   }
   return out;
 }
-function sampleRegularPolygon(sides,N){
+function poly(sides,N){
   const R=Math.min(W,H)*0.35, cx=W/2, cy=H/2, V=[];
   for(let i=0;i<sides;i++){ const a=-Math.PI/2 + i*2*Math.PI/sides; V.push([cx+R*Math.cos(a), cy+R*Math.sin(a)]); }
   return resamplePolyline(V,N,true);
 }
-function sampleStar5(N){
+function star5(N){
   const cx=W/2, cy=H/2, R=Math.min(W,H)*0.35, r=R*0.4, V=[];
-  for(let i=0;i<10;i++){
-    const a=-Math.PI/2 + i*(2*Math.PI/10);
-    V.push([cx+(i%2===0?R:r)*Math.cos(a), cy+(i%2===0?R:r)*Math.sin(a)]);
-  }
+  for(let i=0;i<10;i++){ const a=-Math.PI/2+i*(2*Math.PI/10); V.push([cx+(i%2? r:R)*Math.cos(a), cy+(i%2? r:R)*Math.sin(a)]); }
   return resamplePolyline(V,N,true);
 }
-function sampleHeart(N){
+function heart(N){
   const s=Math.min(W,H)*0.03, cx=W/2, cy=H/2, pts=[];
-  for(let i=0;i<N;i++){
-    const tt=i/N*2*Math.PI;
+  for(let i=0;i<N;i++){ const tt=i/N*2*Math.PI;
     const x=16*Math.pow(Math.sin(tt),3);
     const y=13*Math.cos(tt)-5*Math.cos(2*tt)-2*Math.cos(3*tt)-Math.cos(4*tt);
-    pts.push({x:cx + x*s, y:cy - y*s});
-  }
+    pts.push({x:cx+x*s,y:cy-y*s}); }
   return pts;
 }
-function sampleInfinity(N){
+function infinityC(N){
   const a=Math.min(W,H)*0.25, cx=W/2, cy=H/2, pts=[];
-  for(let i=0;i<N;i++){
-    const tt=i/N*2*Math.PI, d=1+Math.sin(tt)*Math.sin(tt);
-    pts.push({x:cx+a*Math.cos(tt)/d, y:cy+a*Math.sin(tt)*Math.cos(tt)/d});
-  }
+  for(let i=0;i<N;i++){ const t=i/N*2*Math.PI, d=1+Math.sin(t)*Math.sin(t);
+    pts.push({x:cx+a*Math.cos(t)/d, y:cy+a*Math.sin(t)*Math.cos(t)/d}); }
   return pts;
 }
-function sampleCircle(N){
+function circle(N){
   const R=Math.min(W,H)*0.35, cx=W/2, cy=H/2, pts=[];
   for(let i=0;i<N;i++){ const a=i/N*2*Math.PI; pts.push({x:cx+R*Math.cos(a), y:cy+R*Math.sin(a)}); }
   return pts;
 }
-function sampleBatman(N){
-  const base=[[-1.00,0.00],[-0.80,0.22],[-0.60,0.10],[-0.50,0.30],[-0.40,0.10],[-0.30,0.22],[-0.20,0.05],[-0.15,0.22],[-0.10,0.10],[-0.07,0.36],[0.00,0.52],
-              [0.07,0.36],[0.10,0.10],[0.15,0.22],[0.20,0.05],[0.30,0.22],[0.40,0.10],[0.50,0.30],[0.60,0.10],[0.80,0.22],[1.00,0.00],
-              [0.80,-0.22],[0.60,-0.10],[0.50,-0.30],[0.40,-0.10],[0.30,-0.22],[0.20,-0.05],[0.15,-0.26],[0.10,-0.10],[0.00,-0.42],[-0.10,-0.10],[-0.15,-0.26],[-0.20,-0.05],[-0.30,-0.22],[-0.40,-0.10],[-0.50,-0.30],[-0.60,-0.10],[-0.80,-0.22]];
-  const s=Math.min(W,H)*0.35, cx=W/2, cy=H/2;
-  const V=base.map(([x,y])=>[cx+x*s, cy+y*s]);
+function batmanS(N){
+  const base=[[-1,0],[-.8,.22],[-.6,.1],[-.5,.3],[-.4,.1],[-.3,.22],[-.2,.05],[-.15,.22],[-.1,.1],[-.07,.36],[0,.52],[.07,.36],[.1,.1],[.15,.22],[.2,.05],[.3,.22],[.4,.1],[.5,.3],[.6,.1],[.8,.22],[1,0],[.8,-.22],[.6,-.1],[.5,-.3],[.4,-.1],[.3,-.22],[.2,-.05],[.15,-.26],[.1,-.1],[0,-.42],[-.1,-.1],[-.15,-.26],[-.2,-.05],[-.3,-.22],[-.4,-.1],[-.5,-.3],[-.6,-.1],[-.8,-.22]];
+  const s=Math.min(W,H)*0.35, cx=W/2, cy=H/2; const V=base.map(([x,y])=>[cx+x*s, cy+y*s]);
   return resamplePolyline(V,N,true);
 }
 
 /* ===== DFT ===== */
-function dft(points){
-  const N=points.length;
-  let cx=0,cy=0; for(const p of points){cx+=p.x; cy+=p.y} cx/=N; cy/=N;
-  const z=points.map(p=>({re:p.x-cx, im:p.y-cy}));
+function dft(pts){
+  const N=pts.length;
+  let cx=0,cy=0; for(const p of pts){cx+=p.x; cy+=p.y} cx/=N; cy/=N;
+  const z=pts.map(p=>({re:p.x-cx, im:p.y-cy}));
   const C=[];
   for(let k=-Math.floor(N/2); k<=Math.floor(N/2); k++){
     let re=0, im=0;
-    for(let n=0;n<N;n++){
-      const ang=-2*Math.PI*k*n/N;
-      re += z[n].re*Math.cos(ang) - z[n].im*Math.sin(ang);
-      im += z[n].re*Math.sin(ang) + z[n].im*Math.cos(ang);
-    }
-    re/=N; im/=N;
-    C.push({k, amp:Math.hypot(re,im), phase:Math.atan2(im,re), cx, cy});
+    for(let n=0;n<N;n++){ const a=-2*Math.PI*k*n/N;
+      re += z[n].re*Math.cos(a) - z[n].im*Math.sin(a);
+      im += z[n].re*Math.sin(a) + z[n].im*Math.cos(a); }
+    C.push({id:k+N, k, amp:Math.hypot(re/N,im/N), phase:Math.atan2(im,re), cx, cy, enabled:true, modK:0, ampScale:1, phaseOffset:0});
   }
-  return C;
+  return C.sort((a,b)=>b.amp-a.amp);
 }
-function rebuild(){ order=[...coeffs].sort((a,b)=>b.amp-a.amp); }
+
+/* ===== Build & Lista ===== */
+function build(shape='heart'){
+  const N=1024;
+  points = shape==='heart'?heart(N):
+           shape==='star'?star5(N):
+           shape==='triangle'?poly(3,N):
+           shape==='square'?poly(4,N):
+           shape==='pentagon'?poly(5,N):
+           shape==='hexagon'?poly(6,N):
+           shape==='infinity'?infinityC(N):
+           shape==='circle'?circle(N):batmanS(N);
+  order = dft(points); t=0; trace.length=0; highlightId=null;
+  renderCircleList();
+}
+function renderCircleList(){
+  const list = $('#circleList');
+  const n = circlesN;
+  const rows = order.slice(0,n).map((c,i)=>`
+    <div class="rowc" data-id="${c.id}">
+      <div>${i+1}</div>
+      <div class="tog"><input type="checkbox" ${c.enabled?'checked':''} class="onoff"></div>
+      <div class="steppers">
+        <button class="btn k-">k−</button><button class="btn k+">k+</button>
+        <button class="btn r-">r−</button><button class="btn r+">r+</button>
+        <button class="btn p-">φ−</button><button class="btn p+">φ+</button>
+      </div>
+    </div>`).join('');
+  list.innerHTML = rows || `<div class="row"><span class="lab">Sin círculos.</span></div>`;
+}
 
 /* ===== Animación ===== */
-let circlesN = 8;
-let speed = 0.10;
 function frame(dt){
   if(running) t += dt*speed;
 
   ctx.setTransform(1,0,0,1,0,0);
   ctx.clearRect(0,0,W,H);
 
-  const chosen = order.slice(0, circlesN);
+  const chosen = order.filter(c=>c.enabled).slice(0,circlesN);
 
-  let x = (coeffs[0]?.cx || W/2) + centerOffset.x;
-  let y = (coeffs[0]?.cy || H/2) + centerOffset.y;
+  let x=(order[0]?.cx||W/2)+centerOffset.x, y=(order[0]?.cy||H/2)+centerOffset.y;
 
-  if(showCircles && !onlyLine){
-    ctx.lineWidth = 1*dpi; ctx.strokeStyle='rgba(255,255,255,.25)';
+  if(showCircles){
+    ctx.lineWidth=1*dpi;
     for(const c of chosen){
-      const amp = c.amp*zoom;
-      const ang = 2*Math.PI*c.k*(t%1)+c.phase;
-      const vx = amp*Math.cos(ang), vy = amp*Math.sin(ang);
+      const freq=c.k+c.modK, phase=c.phase+c.phaseOffset, amp=c.amp*c.ampScale*zoom;
+      const ang=2*Math.PI*freq*(t%1)+phase, vx=amp*Math.cos(ang), vy=amp*Math.sin(ang);
+      ctx.strokeStyle = (c.id===highlightId)?'rgba(255,255,255,.9)':'rgba(255,255,255,.25)';
       ctx.beginPath(); ctx.arc(x,y,amp,0,Math.PI*2); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+vx,y+vy); ctx.stroke();
       x+=vx; y+=vy;
     }
   } else {
     for(const c of chosen){
-      const amp = c.amp*zoom;
-      const ang = 2*Math.PI*c.k*(t%1)+c.phase;
-      x+=amp*Math.cos(ang); y+=amp*Math.sin(ang);
+      const freq=c.k+c.modK, phase=c.phase+c.phaseOffset, amp=c.amp*c.ampScale*zoom;
+      const ang=2*Math.PI*freq*(t%1)+phase; x+=amp*Math.cos(ang); y+=amp*Math.sin(ang);
     }
   }
 
   if(showTrace){
-    trace.push({x,y,color:currentColor});
-    if(trace.length>traceMax) trace.splice(0, trace.length-traceMax);
+    trace.push({x,y,color:currentColor}); if(trace.length>traceMax) trace.splice(0,trace.length-traceMax);
     ctx.lineWidth=2*dpi;
-    for(let i=1;i<trace.length;i++){
-      ctx.strokeStyle=trace[i].color;
-      ctx.beginPath(); ctx.moveTo(trace[i-1].x,trace[i-1].y); ctx.lineTo(trace[i].x,trace[i].y); ctx.stroke();
-    }
+    for(let i=1;i<trace.length;i++){ ctx.strokeStyle=trace[i].color; ctx.beginPath(); ctx.moveTo(trace[i-1].x,trace[i-1].y); ctx.lineTo(trace[i].x,trace[i].y); ctx.stroke(); }
   }
-
-  ctx.fillStyle=currentColor;
-  ctx.beginPath(); ctx.arc(x,y,2.5*dpi,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle=currentColor; ctx.beginPath(); ctx.arc(x,y,2.5*dpi,0,Math.PI*2); ctx.fill();
 }
 let last=performance.now();
 function loop(now){ const dt=Math.min(0.05,(now-last)/1000); last=now; frame(dt); requestAnimationFrame(loop); }
 
-/* ===== Build inicial ===== */
-function build(shape='heart'){
-  const N=1024;
-  if(shape==='heart') points=sampleHeart(N);
-  else if(shape==='star') points=sampleStar5(N);
-  else if(shape==='triangle') points=sampleRegularPolygon(3,N);
-  else if(shape==='square') points=sampleRegularPolygon(4,N);
-  else if(shape==='pentagon') points=sampleRegularPolygon(5,N);
-  else if(shape==='hexagon') points=sampleRegularPolygon(6,N);
-  else if(shape==='infinity') points=sampleInfinity(N);
-  else if(shape==='circle') points=sampleCircle(N);
-  else if(shape==='batman') points=sampleBatman(N);
-  coeffs=dft(points); rebuild(); t=0; trace.length=0;
-}
-build('heart'); requestAnimationFrame(loop);
-
-/* ===== Gestos (pinch / pan / double-tap) ===== */
-let touchState=null;
-cvs.addEventListener('dblclick', resetView);
+/* ===== Gestos ===== */
+cvs.addEventListener('dblclick', ()=>{ zoom=1; centerOffset={x:0,y:0}; });
+let tState=null;
 cvs.addEventListener('touchstart', e=>{
   if(e.touches.length===2){
-    const [a,b]=e.touches;
-    touchState={
-      mode:'pinch', startDist:dist(a,b), startZoom:zoom,
-      startCent:centroid(a,b), startOffset:{...centerOffset}
-    };
-  } else if(e.touches.length===1){
-    touchState={mode:'tap', t:performance.now(), x:e.touches[0].clientX, y:e.touches[0].clientY};
+    const [a,b]=e.touches; tState={mode:'pinch', d0:dist(a,b), z0:zoom, c0:cent(a,b), o0:{...centerOffset}};
   }
 },{passive:false});
-
 cvs.addEventListener('touchmove', e=>{
-  if(!touchState) return;
-  if(touchState.mode==='pinch' && e.touches.length===2){
-    const [a,b]=e.touches;
-    const d = dist(a,b);
-    const c = centroid(a,b);
-    const s = d/(touchState.startDist||1);
-    zoom = clamp(touchState.startZoom*s, 0.5, 3);
-    // pan con dos dedos: trasladamos relativo al centro
-    centerOffset.x = touchState.startOffset.x + (c.clientX - touchState.startCent.clientX)*dpi;
-    centerOffset.y = touchState.startOffset.y + (c.clientY - touchState.startCent.clientY)*dpi;
+  if(tState?.mode==='pinch' && e.touches.length===2){
+    const [a,b]=e.touches; const s=dist(a,b)/(tState.d0||1);
+    zoom=clamp(tState.z0*s,0.5,3);
+    const c=cent(a,b); centerOffset.x=tState.o0.x+(c.clientX-tState.c0.clientX)*dpi; centerOffset.y=tState.o0.y+(c.clientY-tState.c0.clientY)*dpi;
+    e.preventDefault();
   }
-  e.preventDefault();
 },{passive:false});
+function dist(a,b){const dx=a.clientX-b.clientX,dy=a.clientY-b.clientY;return Math.hypot(dx,dy)}
+function cent(a,b){return {clientX:(a.clientX+b.clientX)/2,clientY:(a.clientY+b.clientY)/2}}
 
-cvs.addEventListener('touchend', e=>{
-  if(touchState?.mode==='tap'){
-    const dt=performance.now()-touchState.t;
-    if(dt<200){ /* simple tap → nada */ }
-  }
-  if(e.touches.length===0) touchState=null;
-},{passive:true});
+/* ===== UI: HUD ===== */
+const btnPlay = $('#btnPlay'), btnShape=$('#btnShape'), btnCircles=$('#btnCircles'), btnSpeed=$('#btnSpeed'), btnColor=$('#btnColor');
+btnPlay.addEventListener('click', ()=>{ running=!running; btnPlay.textContent = running?'❚❚':'▶︎'; });
+const SHAPES=['heart','star','triangle','square','pentagon','hexagon','infinity','circle','batman'];
+const SHICON={heart:'♥︎',star:'★',triangle:'▲',square:'■',pentagon:'⬟',hexagon:'⬢',infinity:'∞',circle:'●',batman:'🦇'};
+let shapeIdx=0;
+btnShape.addEventListener('click', ()=>{ shapeIdx=(shapeIdx+1)%SHAPES.length; build(SHAPES[shapeIdx]); btnShape.textContent=SHICON[SHAPES[shapeIdx]]; });
+btnCircles.addEventListener('click', ()=>{ circlesN = circlesN<16? circlesN+1 : 1; $('#circles').value=circlesN; renderCircleList(); });
+btnSpeed.addEventListener('click', ()=>{ cycleSpeed(); });
+btnColor.addEventListener('click', ()=>{ nextHue(); });
 
-function resetView(){ zoom=1; centerOffset={x:0,y:0}; }
-function dist(a,b){ const dx=a.clientX-b.clientX, dy=a.clientY-b.clientY; return Math.hypot(dx,dy); }
-function centroid(a,b){ return {clientX:(a.clientX+b.clientX)/2, clientY:(a.clientY+b.clientY)/2}; }
-function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
+/* ===== Sheet expandible con scroll interno ===== */
+const sheet=$('#sheet'), expanded=$('#expanded'), moreBtn=$('#moreBtn'), closeSheet=$('#closeSheet'), content=$('#sheetContent');
+function openSheet(){ expanded.style.display='block'; sheet.style.height='80vh'; setTimeout(()=>content.scrollTop=0,0); }
+function collapseSheet(){ sheet.style.height='92px'; setTimeout(()=>expanded.style.display='none',180); }
+moreBtn.addEventListener('click', openSheet); closeSheet.addEventListener('click', collapseSheet);
 
-/* ===== HUD & Controles ===== */
-const fab = $('#fab');
-const sheet = $('#sheet'); const expanded = $('#expanded'); const moreBtn = $('#moreBtn');
-const closeSheet = $('#closeSheet');
-const circlesSlider = $('#circles');
-const speedSlider = $('#speed');
-const zoomSlider = $('#zoom');
-const trailSlider = $('#trail');
-const showCirclesChk = $('#showCircles');
-const showTraceChk = $('#showTrace');
-const shapeSel = $('#shape');
-const cDec = $('#cDec'), cInc = $('#cInc');
-const speedPreset = $('#speedPreset');
-const colorNow = $('#colorNow');
-const changeColorBtn = $('#changeColor');
-const autoColorChk = $('#autoColor');
-const palette = $('#palette');
-const savePNGBtn = $('#savePNG');
-
-fab.addEventListener('click', ()=>{ running=!running; fab.textContent = running ? '❚❚' : '▶︎'; });
-
-/* hud taps → abrir sheet secciones */
-$('#hudCircles').addEventListener('click', openSheet);
-$('#hudSpeed').addEventListener('click', ()=>{ cycleSpeed(); });
-$('#hudTrail').addEventListener('click', ()=>{ showTrace=!showTrace; showTraceChk.checked=showTrace; });
-$('#hudColor').addEventListener('click', ()=>{ nextHue(); });
-
-/* sheet expand/collapse */
-moreBtn.addEventListener('click', openSheet);
-closeSheet.addEventListener('click', collapseSheet);
-function openSheet(){ expanded.style.display='block'; sheet.style.height='55vh'; }
-function collapseSheet(){ sheet.style.height='92px'; setTimeout(()=>expanded.style.display='none', 180); }
-
-/* drag sheet (simple) */
+/* Drag para abrir/cerrar */
 let dragY=null, baseH=0;
 sheet.addEventListener('touchstart', e=>{
-  if(e.target.closest('.slider') || e.target.closest('button') || e.target.closest('select')) return;
-  dragY = e.touches[0].clientY; baseH = sheet.getBoundingClientRect().height;
+  if(e.target.closest('input,button,select,.pal,.steppers')) return;
+  dragY=e.touches[0].clientY; baseH=sheet.getBoundingClientRect().height;
 },{passive:true});
 sheet.addEventListener('touchmove', e=>{
   if(dragY===null) return;
-  const dy = dragY - e.touches[0].clientY;
-  const h = clamp(baseH + dy, 92, innerHeight*0.8);
-  sheet.style.height = h+'px';
+  const dy=dragY-e.touches[0].clientY; const h=clamp(baseH+dy,92,innerHeight*0.85);
+  expanded.style.display='block'; sheet.style.height=h+'px';
 },{passive:true});
 sheet.addEventListener('touchend', ()=>{ dragY=null; });
 
-/* circles controls */
-circlesSlider.addEventListener('input', ()=>{ circlesN = parseInt(circlesSlider.value,10); });
-cDec.addEventListener('click', ()=>{ circlesSlider.value=Math.max(1,parseInt(circlesSlider.value)-1); circlesSlider.dispatchEvent(new Event('input')); });
-cInc.addEventListener('click', ()=>{ circlesSlider.value=Math.min(16,parseInt(circlesSlider.value)+1); circlesSlider.dispatchEvent(new Event('input')); });
+/* ===== Controles del sheet ===== */
+const circlesSlider=$('#circles'); circlesSlider.addEventListener('input', ()=>{ circlesN=parseInt(circlesSlider.value,10); renderCircleList(); });
+$('#cDec').addEventListener('click', ()=>{ circlesSlider.value=Math.max(1,parseInt(circlesSlider.value)-1); circlesSlider.dispatchEvent(new Event('input')); });
+$('#cInc').addEventListener('click', ()=>{ circlesSlider.value=Math.min(16,parseInt(circlesSlider.value)+1); circlesSlider.dispatchEvent(new Event('input')); });
 
-/* speed */
-function cycleSpeed(){
-  const presets=[0.05,0.10,0.25,0.50];
-  const i = presets.indexOf(Number(speed.toFixed(2)));
-  speed = presets[(i+1)%presets.length];
-  speedSlider.value = speed;
-}
-speedPreset.addEventListener('click', cycleSpeed);
-speedSlider.addEventListener('input', ()=>{ speed=parseFloat(speedSlider.value); });
+function cycleSpeed(){ const p=[0.05,0.10,0.25,0.50]; const i=p.indexOf(Number(speed.toFixed(2))); speed=p[(i+1)%p.length]; $('#speed').value=speed; }
+$('#speedPreset').addEventListener('click', cycleSpeed);
+$('#speed').addEventListener('input', ()=>{ speed=parseFloat($('#speed').value); });
 
-/* zoom */
-zoomSlider.addEventListener('input', ()=>{ zoom=parseFloat(zoomSlider.value); });
-$('#recenter').addEventListener('click', resetView);
+$('#zoom').addEventListener('input', ()=>{ zoom=parseFloat($('#zoom').value); });
+$('#recenter').addEventListener('click', ()=>{ zoom=1; centerOffset={x:0,y:0}; });
 
-/* trace */
-showTraceChk.addEventListener('change', ()=>{ showTrace=showTraceChk.checked; });
-trailSlider.addEventListener('input', ()=>{ traceMax=parseInt(trailSlider.value,10); });
+$('#showTrace').addEventListener('change', e=>{ showTrace=e.target.checked; });
+$('#trail').addEventListener('input', e=>{ traceMax=parseInt(e.target.value,10); });
+$('#showCircles').addEventListener('change', e=>{ showCircles=e.target.checked; });
 
-/* show circles */
-showCirclesChk.addEventListener('change', ()=>{ showCircles=showCirclesChk.checked; });
-
-/* color & auto */
-function nextHue(){
-  // cambia suavemente dentro de una paleta HSL pastel
-  const m = Math.random()*360|0;
-  currentColor = `hsl(${m},100%,85%)`;
-}
-colorNow.addEventListener('click', nextHue);
-changeColorBtn.addEventListener('click', nextHue);
-palette.addEventListener('click', e=>{
-  const d = e.target.closest('.dot'); if(!d) return;
-  currentColor = d.dataset.c;
+function nextHue(){ const h=(Math.random()*360)|0; currentColor=`hsl(${h},100%,85%)`; }
+$('#colorNow').addEventListener('click', nextHue);
+$('#changeColor').addEventListener('click', nextHue);
+document.querySelectorAll('.pal').forEach(el=> el.addEventListener('click', ()=>{ currentColor=el.dataset.c; }));
+$('#autoColor').addEventListener('change', e=>{
+  if(e.target.checked){ if(autoColorTimer) clearInterval(autoColorTimer); autoColorTimer=setInterval(nextHue,3000); }
+  else{ if(autoColorTimer){ clearInterval(autoColorTimer); autoColorTimer=null; } }
 });
-autoColorChk.addEventListener('change', ()=>{
-  if(autoColorChk.checked){
-    if(autoColorTimer) clearInterval(autoColorTimer);
-    autoColorTimer = setInterval(nextHue, 3000);
-  } else {
-    if(autoColorTimer){ clearInterval(autoColorTimer); autoColorTimer=null; }
-  }
+$('#shape').addEventListener('change', e=>{
+  const v=e.target.value; shapeIdx=SHAPES.indexOf(v); btnShape.textContent=SHICON[v]; build(v);
 });
+$('#savePNG').addEventListener('click', ()=>{ const a=document.createElement('a'); a.href=cvs.toDataURL('image/png'); a.download='epiciclos.png'; a.click(); });
 
-/* figure */
-shapeSel.addEventListener('change', ()=>{ build(shapeSel.value); });
+/* Lista de círculos: on/off y ± */
+$('#circleList').addEventListener('click', e=>{
+  const row = e.target.closest('.rowc'); if(!row) return;
+  const id = parseInt(row.dataset.id,10);
+  const c = order.find(x=>x.id===id); if(!c) return;
 
-/* save */
-savePNGBtn.addEventListener('click', ()=>{
-  const url = cvs.toDataURL('image/png');
-  const a = document.createElement('a'); a.href=url; a.download='epiciclos.png'; a.click();
+  if(e.target.classList.contains('onoff')) return; // handled below
+  if(e.target.classList.contains('k-')) c.modK -= 1;
+  else if(e.target.classList.contains('k+')) c.modK += 1;
+  else if(e.target.classList.contains('r-')) c.ampScale = Math.max(0, c.ampScale*0.95);
+  else if(e.target.classList.contains('r+')) c.ampScale = c.ampScale*1.05;
+  else if(e.target.classList.contains('p-')) c.phaseOffset -= deg2rad(5);
+  else if(e.target.classList.contains('p+')) c.phaseOffset += deg2rad(5);
+  else { highlightId = id; } // tap en la fila → resalta
+});
+$('#circleList').addEventListener('change', e=>{
+  if(!e.target.classList.contains('onoff')) return;
+  const row = e.target.closest('.rowc'); const id = parseInt(row.dataset.id,10);
+  const c = order.find(x=>x.id===id); if(c) c.enabled = e.target.checked;
 });
 
-/* loop time */
+/* ===== Init ===== */
+function init(){ build('heart'); btnShape.textContent='♥︎'; requestAnimationFrame(loop); }
+init();
 </script>
 </body>
 </html>
