@@ -3,69 +3,128 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
-<title>Epiciclos – Corazón (lento + trayectoria)</title>
+<title>Epiciclos – Círculos (1–32) + Panel derecho</title>
 <style>
   :root{
     --bg:#0f141b; --panel:#121a23; --ink:#e6eef7; --muted:#9fb3c9; --accent:#6ab0ff;
+    --line:#e6eef7; --grid:rgba(230,238,247,.12);
   }
   *{box-sizing:border-box}
   html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial}
-  canvas{position:fixed;inset:0;width:100vw;height:100vh;display:block;background:#000}
-  .ui{position:fixed;left:12px;top:12px;display:grid;gap:10px;background:var(--panel);
-      border:1px solid rgba(230,238,247,.1);padding:12px;border-radius:12px;max-width:320px}
+  .layout{
+    display:grid; grid-template-columns:320px 1fr 340px; min-height:100vh;
+  }
+  @media (max-width:1100px){
+    .layout{grid-template-columns:1fr}
+    .side-left,.side-right{position:static; width:auto; border:none}
+  }
+  .side-left,.side-right{
+    background:var(--panel); border-right:1px solid var(--grid); padding:12px; overflow:auto
+  }
+  .side-right{border-left:1px solid var(--grid); border-right:none}
+  .title{font-weight:700;margin-bottom:8px}
+  .card{background:#0e1520;border:1px solid rgba(230,238,247,.08);border-radius:12px;padding:12px;margin-bottom:12px}
   .row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .lab{color:var(--muted);font-size:12px}
-  .title{font-weight:700}
   input[type="range"]{width:170px}
   select,button{background:#101722;border:1px solid rgba(230,238,247,.12);color:var(--ink);padding:8px 10px;border-radius:10px}
   button.primary{background:var(--accent);color:#06121e;border:0}
-  a.small{color:var(--muted);font-size:12px;text-decoration:none}
+  button.ghost{background:transparent}
+  .hint{color:var(--muted);font-size:12px}
+  canvas{width:100%;height:100%;display:block;background:#000}
+
+  /* Panel derecho tabla */
+  .list-head, .list-row{
+    display:grid; grid-template-columns:32px 60px 1fr 70px 54px; align-items:center; gap:8px;
+    padding:8px 6px; border-bottom:1px solid rgba(230,238,247,.06);
+  }
+  .list-head{position:sticky; top:0; background:var(--panel); border-top-left-radius:10px;border-top-right-radius:10px; z-index:1}
+  .list-row{cursor:pointer}
+  .list-row:hover{background:rgba(230,238,247,.04)}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
+  .onoff{display:flex;justify-content:center}
+  .pill{
+    display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; background:#0b1220; border:1px solid rgba(230,238,247,.12)
+  }
+  .legend{display:flex; gap:8px; flex-wrap:wrap}
 </style>
 </head>
 <body>
-<canvas id="cv"></canvas>
+<div class="layout">
+  <!-- Panel izquierdo -->
+  <aside class="side-left">
+    <div class="title">Epiciclos → Figura</div>
 
-<div class="ui">
-  <div class="title">Epiciclos → Figura</div>
-  <div class="row">
-    <span class="lab">Figura</span>
-    <select id="shape">
-      <option value="heart" selected>Corazón</option>
-      <option value="star">Estrella (5 puntas)</option>
-      <option value="infinity">Infinito</option>
-      <option value="circle">Círculo</option>
-    </select>
-    <button id="reset">Reset</button>
-  </div>
+    <div class="card">
+      <div class="row">
+        <span class="lab">Figura</span>
+        <select id="shape">
+          <option value="heart" selected>Corazón</option>
+          <option value="star">Estrella (5 puntas)</option>
+          <option value="infinity">Infinito</option>
+          <option value="circle">Círculo</option>
+        </select>
+        <button id="reset">Reset</button>
+      </div>
+    </div>
 
-  <div class="row">
-    <span class="lab">Armónicos</span>
-    <input id="harm" type="range" min="8" max="256" step="8" value="96">
-    <span id="harmVal" class="lab">96</span>
-  </div>
+    <div class="card">
+      <div class="row">
+        <span class="lab">Círculos</span>
+        <input id="circles" type="range" min="1" max="32" step="1" value="16">
+        <span id="circlesVal" class="lab">16</span>
+      </div>
+      <div class="row">
+        <span class="lab">Velocidad</span>
+        <input id="speed" type="range" min="0.02" max="1" step="0.02" value="0.10">
+        <span id="spdVal" class="lab">0.10×</span>
+      </div>
+      <div class="row">
+        <span class="lab">Trayectoria</span>
+        <input id="trail" type="range" min="50" max="4000" step="50" value="1500">
+        <span id="trailVal" class="lab">1500</span>
+      </div>
+      <div class="row">
+        <label class="lab"><input id="showCircles" type="checkbox" checked> Mostrar círculos</label>
+        <label class="lab"><input id="showTrace" type="checkbox" checked> Dibujar trayectoria</label>
+        <button id="drawOnly" class="ghost">Solo línea</button>
+      </div>
+      <div class="row">
+        <button id="pause">Pausa</button>
+        <button id="savePNG" class="ghost">Guardar PNG</button>
+      </div>
+      <div class="hint">Consejo: 8–16 círculos → look minimal; 24–32 → más fidelidad.</div>
+    </div>
 
-  <!-- MUCHO MÁS DESPACIO -->
-  <div class="row">
-    <span class="lab">Velocidad</span>
-    <input id="speed" type="range" min="0.02" max="1" step="0.02" value="0.10">
-    <span id="spdVal" class="lab">0.10×</span>
-  </div>
+    <div class="card legend">
+      <span class="pill">k: frecuencia</span>
+      <span class="pill">radio: amplitud</span>
+      <span class="pill">fase: ángulo inicial</span>
+    </div>
+  </aside>
 
-  <!-- TRAYECTORIA -->
-  <div class="row">
-    <span class="lab">Trayectoria</span>
-    <input id="trail" type="range" min="50" max="4000" step="50" value="1500">
-    <span id="trailVal" class="lab">1500</span>
-  </div>
-  <div class="row">
-    <label class="lab"><input id="showCircles" type="checkbox" checked> Mostrar círculos</label>
-    <label class="lab"><input id="showTrace" type="checkbox" checked> Dibujar trayectoria</label>
-  </div>
-  <div class="row" style="gap:10px">
-    <button id="pause">Pausa</button>
-    <button id="drawOnly">Solo línea</button>
-  </div>
-  <a class="small" href="#" id="savePNG">Guardar PNG</a>
+  <!-- Lienzo central -->
+  <main>
+    <canvas id="cv"></canvas>
+  </main>
+
+  <!-- Panel derecho -->
+  <aside class="side-right">
+    <div class="title">Círculos activos</div>
+    <div class="card" style="padding:0">
+      <div class="list-head lab">
+        <div>#</div><div>k</div><div>radio (px)</div><div>fase (°)</div><div class="onoff">on</div>
+      </div>
+      <div id="circlesPanel"></div>
+    </div>
+    <div class="row" style="gap:8px">
+      <button id="onlyEnabled">Solo seleccionados</button>
+      <button id="restoreAll" class="ghost">Restaurar todos</button>
+    </div>
+    <div class="hint" style="margin-top:8px">
+      Clic en una fila para <b>resaltar</b> el círculo en el lienzo. Usa “on/off” para incluirlo o excluirlo de la suma.
+    </div>
+  </aside>
 </div>
 
 <script>
@@ -75,7 +134,7 @@ const dpi = devicePixelRatio||1;
 let W=0,H=0;
 
 const shapeSel = document.getElementById('shape');
-const harm = document.getElementById('harm'); const harmVal = document.getElementById('harmVal');
+const circles = document.getElementById('circles'); const circlesVal = document.getElementById('circlesVal');
 const speed = document.getElementById('speed'); const spdVal = document.getElementById('spdVal');
 const showCircles = document.getElementById('showCircles');
 const showTrace = document.getElementById('showTrace');
@@ -84,15 +143,19 @@ const pauseBtn = document.getElementById('pause');
 const drawOnlyBtn = document.getElementById('drawOnly');
 const resetBtn = document.getElementById('reset');
 const savePNGBtn = document.getElementById('savePNG');
+const circlesPanel = document.getElementById('circlesPanel');
+const onlyEnabledBtn = document.getElementById('onlyEnabled');
+const restoreAllBtn = document.getElementById('restoreAll');
 
-let points=[], coeffs=[], order=[];
+let points=[], coeffs=[], order=[]; // order = coeficientes ordenados por amp desc
 let t=0, running=true, onlyLine=false;
 let trace=[], traceMax=parseInt(trail.value,10);
+let highlightId = null; // id del círculo resaltado
 
 function resize(){ W=Math.floor(innerWidth*dpi); H=Math.floor(innerHeight*dpi); cvs.width=W; cvs.height=H; }
 resize(); addEventListener('resize', ()=>{ resize(); buildShape(); });
 
-/* ---------- Figuras ---------- */
+/* === Figuras === */
 function sampleHeart(N){
   const pts=[]; const s=Math.min(W,H)*0.03;
   for(let i=0;i<N;i++){
@@ -126,12 +189,13 @@ function sampleCircle(N){
   return pts;
 }
 
-/* ---------- DFT ---------- */
+/* === DFT === */
 function dft(points){
   const N=points.length;
   let cx=0,cy=0; for(const p of points){cx+=p.x; cy+=p.y} cx/=N; cy/=N;
   const z=points.map(p=>({re:p.x-cx, im:p.y-cy}));
   const C=[];
+  let idCounter=0;
   for(let k=-Math.floor(N/2); k<=Math.floor(N/2); k++){
     let re=0, im=0;
     for(let n=0;n<N;n++){
@@ -140,33 +204,104 @@ function dft(points){
       im += z[n].re*Math.sin(ang) + z[n].im*Math.cos(ang);
     }
     re/=N; im/=N;
-    C.push({k, amp:Math.hypot(re,im), phase:Math.atan2(im,re), cx, cy});
+    C.push({ id:idCounter++, k, amp:Math.hypot(re,im), phase:Math.atan2(im,re), cx, cy, enabled:true });
   }
   return C;
 }
-function rebuildOrder(){ order=[...coeffs].sort((a,b)=>b.amp-a.amp); }
+function rebuildOrder(){
+  order = [...coeffs].sort((a,b)=> b.amp - a.amp);
+  buildRightPanel(); // reconstruye listado
+}
 
-/* ---------- Animación ---------- */
+/* === Panel derecho === */
+function buildRightPanel(){
+  const N = parseInt(circles.value,10);
+  // mostramos exactamente los N primeros por amplitud (aunque estén off, para poder activarlos)
+  const viewList = order.slice(0, N);
+  const rows = viewList.map((c, idx)=>{
+    const deg = rad2deg(c.phase);
+    const active = c.enabled ? 'checked' : '';
+    return `
+      <div class="list-row" data-id="${c.id}">
+        <div class="mono">${idx+1}</div>
+        <div class="mono">${c.k}</div>
+        <div class="mono">${fmt(c.amp)}</div>
+        <div class="mono">${fmt(deg,0)}</div>
+        <div class="onoff">
+          <input type="checkbox" class="row-toggle" data-id="${c.id}" ${active} />
+        </div>
+      </div>
+    `;
+  }).join('');
+  circlesPanel.innerHTML = rows || `<div class="lab" style="padding:12px">Sin círculos.</div>`;
+}
+// Delegación de eventos para highlight y toggle
+circlesPanel.addEventListener('click', (e)=>{
+  const row = e.target.closest('.list-row');
+  if(row){
+    highlightId = parseInt(row.getAttribute('data-id'),10);
+  }
+});
+circlesPanel.addEventListener('change', (e)=>{
+  if(e.target.classList.contains('row-toggle')){
+    const id = parseInt(e.target.getAttribute('data-id'),10);
+    const c = order.find(x=>x.id===id);
+    if(c){ c.enabled = e.target.checked; }
+  }
+});
+onlyEnabledBtn.addEventListener('click', ()=>{
+  // apaga todo excepto lo que ya estaba encendido dentro de los N visibles
+  const N = parseInt(circles.value,10);
+  const visible = new Set(order.slice(0,N).map(c=>c.id));
+  // primero apaga todos
+  order.forEach(c=> c.enabled=false);
+  // enciende los visibles que ya estaban on (si quieres: encender todos los visibles)
+  order.slice(0,N).forEach(c=> c.enabled=true);
+  buildRightPanel();
+});
+restoreAllBtn.addEventListener('click', ()=>{
+  order.forEach(c=> c.enabled=true);
+  buildRightPanel();
+});
+
+/* === Animación === */
 function drawFrame(dt){
-  if(running){ t += dt * parseFloat(speed.value); } // MUCHO MÁS LENTO por defecto
+  if(running){ t += dt * parseFloat(speed.value); } // velocidad lenta por defecto
 
   ctx.setTransform(1,0,0,1,0,0);
   ctx.clearRect(0,0,W,H);
 
-  let x = coeffs[0]?.cx || W/2, y = coeffs[0]?.cy || H/2;
-  const chosen = order.slice(0, parseInt(harm.value,10));
+  // Conjunto de círculos activos (por amplitud) limitado a N y enabled
+  const N = parseInt(circles.value,10);
+  const chosen = order.filter(c=>c.enabled).slice(0, N);
 
+  // Partimos del centro medio
+  let x = coeffs[0]?.cx || W/2, y = coeffs[0]?.cy || H/2;
+
+  // Dibujo de círculos
   if(!onlyLine && showCircles.checked){
-    ctx.lineWidth=1*dpi; ctx.strokeStyle='rgba(255,255,255,.25)';
-  }
-  for(const c of chosen){
-    const ang = 2*Math.PI*c.k*(t%1) + c.phase;
-    const vx = c.amp*Math.cos(ang), vy = c.amp*Math.sin(ang);
-    if(!onlyLine && showCircles.checked){
+    for(const c of chosen){
+      const ang = 2*Math.PI*c.k*(t%1) + c.phase;
+      const vx = c.amp*Math.cos(ang), vy = c.amp*Math.sin(ang);
+
+      const isHL = (c.id === highlightId);
+      ctx.lineWidth = (isHL? 2.5: 1) * dpi;
+      ctx.strokeStyle = isHL ? 'rgba(255,255,255,.85)' : 'rgba(255,255,255,.25)';
+
+      // círculo
       ctx.beginPath(); ctx.arc(x,y,c.amp,0,Math.PI*2); ctx.stroke();
+      // radio vector
       ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+vx,y+vy); ctx.stroke();
+
+      x += vx; y += vy;
     }
-    x += vx; y += vy;
+  } else {
+    // aunque no pintemos círculos, debemos llegar al punto final
+    for(const c of chosen){
+      const ang = 2*Math.PI*c.k*(t%1) + c.phase;
+      x += c.amp*Math.cos(ang);
+      y += c.amp*Math.sin(ang);
+    }
   }
 
   // Trazo acumulado (trayectoria)
@@ -177,7 +312,7 @@ function drawFrame(dt){
     // dibujar con desvanecimiento
     ctx.lineWidth=2*dpi;
     for(let i=1;i<trace.length;i++){
-      const a = i/trace.length; // 0..1
+      const a = i/trace.length;
       ctx.strokeStyle = `rgba(230,238,247,${a})`;
       ctx.beginPath();
       ctx.moveTo(trace[i-1][0], trace[i-1][1]);
@@ -187,7 +322,7 @@ function drawFrame(dt){
   }
 
   // punto actual
-  ctx.fillStyle='#e6eef7';
+  ctx.fillStyle= 'var(--line)';
   ctx.beginPath(); ctx.arc(x,y,2.5*dpi,0,Math.PI*2); ctx.fill();
 }
 
@@ -198,7 +333,7 @@ function loop(now){
   requestAnimationFrame(loop);
 }
 
-/* ---------- UI ---------- */
+/* === UI === */
 function buildShape(){
   const N=1024;
   if(shapeSel.value==='heart') points=sampleHeart(N);
@@ -207,22 +342,28 @@ function buildShape(){
   else points=sampleCircle(N);
   coeffs=dft(points);
   rebuildOrder();
-  t=0; trace.length=0;
+  t=0; trace.length=0; highlightId=null;
 }
 buildShape(); requestAnimationFrame(loop);
 
-harm.addEventListener('input', ()=>{harmVal.textContent=harm.value});
-speed.addEventListener('input', ()=>{spdVal.textContent=parseFloat(speed.value).toFixed(2)+'×'});
-trail.addEventListener('input', ()=>{traceMax=parseInt(trail.value,10); trailVal.textContent=traceMax});
 shapeSel.addEventListener('change', ()=> buildShape());
-resetBtn.addEventListener('click', ()=> { t=0; trace.length=0; });
+resetBtn.addEventListener('click', ()=> { t=0; trace.length=0; highlightId=null; });
 pauseBtn.addEventListener('click', ()=> { running=!running; pauseBtn.textContent = running?'Pausa':'Reanudar'; });
 drawOnlyBtn.addEventListener('click', ()=> { onlyLine=!onlyLine; drawOnlyBtn.textContent = onlyLine?'Círculos + línea':'Solo línea'; });
+
+circles.addEventListener('input', ()=>{ circlesVal.textContent=circles.value; buildRightPanel(); });
+speed.addEventListener('input', ()=>{ spdVal.textContent=parseFloat(speed.value).toFixed(2)+'×'; });
+trail.addEventListener('input', ()=>{ traceMax=parseInt(trail.value,10); trailVal.textContent=traceMax; });
+
 savePNGBtn.addEventListener('click', (e)=>{
   e.preventDefault();
   const url = cvs.toDataURL('image/png');
   const a = document.createElement('a'); a.href=url; a.download='epiciclos.png'; a.click();
 });
+
+/* === Utils === */
+function rad2deg(r){ return r*180/Math.PI; }
+function fmt(v,dec=1){ return Number(v).toFixed(dec); }
 </script>
 </body>
 </html>
