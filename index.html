@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover"/>
-<title>Órbitas – minimal</title>
+<title>Órbitas – minimal 2 filas</title>
 <style>
   :root{
     --bg:#000; --panel:rgba(16,23,34,.92); --ink:#e6eef7; --muted:#9fb3c9; --shadow:rgba(0,0,0,.35);
@@ -11,9 +11,9 @@
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial}
   .wrap{position:fixed;inset:0;display:flex;flex-direction:column}
-  /* barra de botones */
+  /* barra de botones en 2 filas (wrap) */
   .top{
-    position:relative; z-index:5; display:flex; gap:10px; padding:10px 12px;
+    position:relative; z-index:5; display:flex; flex-wrap:wrap; gap:10px; padding:10px 12px;
     background:linear-gradient(180deg, rgba(0,0,0,.75), rgba(0,0,0,.2));
     backdrop-filter:saturate(1.2) blur(4px);
   }
@@ -26,8 +26,6 @@
   .chip small{font-size:12px; color:var(--muted)}
   .chip.active{outline:2px solid rgba(255,255,255,.35)}
   .chip:active{transform:scale(.98)}
-  .grow{flex:1}
-  /* lienzo */
   .stage{position:relative; flex:1; overflow:hidden; touch-action:none;}
   canvas{position:absolute; inset:0; width:100%; height:100%; display:block; background:#000}
 </style>
@@ -35,17 +33,19 @@
 <body>
 <div class="wrap">
   <div class="top" id="toolbar">
-    <!-- orden: círculos, figura, velocidad, trayectoria, φ, r, 🔍, 🎨, off1, play, save -->
+    <!-- fila 1 -->
     <div class="chip" id="btnCircles" title="Círculos 3/6/12">●●●</div>
     <div class="chip" id="btnShape"   title="Figura">♥︎</div>
     <div class="chip" id="btnSpeed"   title="Velocidad">🐢</div>
-    <div class="chip" id="btnTrail"   title="Trayectoria">◔</div>
-    <div class="chip" id="btnPhase"   title="Fase por ciclo">φ</div>
-    <div class="chip" id="btnAmp"     title="Tamaño por ciclo">r</div>
-    <div class="chip" id="btnZoomC"   title="Zoom por ciclo">🔍</div>
+    <div class="chip" id="btnTrail"   title="Trayectoria (0/1/cierre)">◔</div>
+    <div class="chip" id="btnPhase"   title="Fase por ciclo (+10°)">φ</div>
+    <!-- fila 2 -->
+    <div class="chip" id="btnAmp"     title="Tamaño por ciclo (×1.05)">r</div>
+    <div class="chip" id="btnZoomC"   title="Zoom por ciclo (×1.05)">🔍</div>
     <div class="chip" id="btnColorC"  title="Color por ciclo">🎨</div>
     <div class="chip" id="btnOff1"    title="Desactivar 1º círculo"><small>1</small>⛔</div>
-    <div class="chip" id="btnPlay"    title="Play/Pausa">▶︎</div>
+    <div class="chip" id="btnReset"   title="Reset">↺</div>
+    <div class="chip" id="btnPlay"    title="Play/Pausa">❚❚</div>
     <div class="chip" id="btnSave"    title="Guardar PNG">💾</div>
   </div>
 
@@ -59,32 +59,34 @@ const dpi = devicePixelRatio||1;
 let W=0,H=0;
 
 let t=0, running=true;
-let zoom=1;                 // no hay zoom manual; solo “zoom por ciclo”
-let showTrace=true, trailMode=1; // 0: off, 1: 1 ciclo, 2: infinito
-let trace=[], traceMax=4000;
+let zoom=1; // no hay zoom manual
+let showTrace=true, trailMode=1; // 0: off, 1: 1 ciclo, 2: hasta cierre largo
+let trace=[], traceMax=8000;
 let currentColor='#e6eef7';
-let autoColorTimer=null;
 
 let circlesPresets=[3,6,12], circlesIdx=1, circlesN=circlesPresets[circlesIdx];
-let speedPresets=[0.05,0.10,0.25], speedIdx=1, speed=speedPresets[speedIdx];
+let speedPresets=[0.02,0.10,0.25], speedIdx=1, speed=speedPresets[speedIdx];
 
 const SHAPES=['heart','star','triangle','square','pentagon','hexagon','infinity','circle','batman'];
 const SHICON={heart:'♥︎',star:'★',triangle:'▲',square:'■',pentagon:'⬟',hexagon:'⬢',infinity:'∞',circle:'●',batman:'🦇'};
 let shapeIdx=0;
 
-let points=[], order=[], highlightId=null;
+let points=[], order=[];
 let disableFirst=false;
 
 const perCycle={
-  phaseEnabled:true,  phaseStepDeg:5,
-  ampEnabled:false,   ampScaleStep:1.03,
-  zoomEnabled:false,  zoomStep:1.02,
+  phaseEnabled:true,  phaseStepDeg:10,               // +10°
+  ampEnabled:false,   ampScaleStep:1.05,             // ×1.05
+  zoomEnabled:false,  zoomStep:1.05,                 // ×1.05
   colorEnabled:true
 };
+// control de “cierre largo” por fase acumulada
+let cumPhaseDeg = 0;        // acumula la fase aplicada (mod 360)
+let lastCycle = 0;          // ciclos base
+let startPt = null;         // para cierre geométrico cuando phaseEnabled=false
 
-let lastCycle=0, startPt=null; // ciclo “base” por defecto
-
-/* ========= Utilidades ========= */
+/* ========= Util ========= */
+const $ = s=>document.querySelector(s);
 function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
 function deg2rad(d){return d*Math.PI/180}
 
@@ -158,12 +160,13 @@ function dft(pts){
       re += z[n].re*Math.cos(a) - z[n].im*Math.sin(a);
       im += z[n].re*Math.sin(a) + z[n].im*Math.cos(a); }
     re/=N; im/=N;
-    C.push({id:k+N, k, amp:Math.hypot(re,im), phase:Math.atan2(im,re), cx, cy, enabled:true, modK:0, ampScale:1, phaseOffset:0});
+    C.push({id:k+N, k, amp:Math.hypot(re,im), phase:Math.atan2(im,re), cx, cy,
+            enabled:true, modK:0, ampScale:1, phaseOffset:0});
   }
   return C.sort((a,b)=>b.amp-a.amp);
 }
 
-/* ========= Build ========= */
+/* ========= Build & helpers ========= */
 function build(shape='heart'){
   const N=1024;
   points = shape==='heart'?heart(N):
@@ -175,8 +178,12 @@ function build(shape='heart'){
            shape==='infinity'?infinityC(N):
            shape==='circle'?circle(N):batmanS(N);
   order = dft(points);
-  t=0; trace.length=0; startPt=null; lastCycle=0;
+  t=0; trace.length=0; lastCycle=0; startPt=null; cumPhaseDeg=0;
   applyDisableFirst();
+}
+function firstEnabled(){
+  for(const c of order){ if(c.enabled) return c; }
+  return null;
 }
 
 /* ========= Animación ========= */
@@ -187,10 +194,8 @@ function frame(dt){
   ctx.clearRect(0,0,W,H);
 
   const chosen = order.filter(c=>c.enabled).slice(0,circlesN);
-
   let x=(order[0]?.cx||W/2), y=(order[0]?.cy||H/2);
 
-  // opcional: círculos guía muy sutiles
   ctx.lineWidth=1*dpi;
   for(const c of chosen){
     const freq=c.k+c.modK, phase=c.phase+c.phaseOffset, amp=c.amp*c.ampScale*zoom;
@@ -212,47 +217,87 @@ function frame(dt){
   }
   ctx.fillStyle=currentColor; ctx.beginPath(); ctx.arc(x,y,2.6*dpi,0,Math.PI*2); ctx.fill();
 
-  // ciclo “base”: cada vez que t cruza entero
-  const k = Math.floor(t);
-  if(k>lastCycle){
-    lastCycle=k;
-    onCycleClosed();
+  // gestión de ciclos
+  const cycleNow = Math.floor(t);
+  const closedBase = cycleNow > lastCycle;
+  const closedGeom = startPt && (Math.hypot(x-startPt.x,y-startPt.y) < 2.5*dpi) && (t-lastCycle>0.6);
+
+  if(!startPt) startPt = {x,y};
+
+  if(closedBase){
+    lastCycle = cycleNow;
+    onCycleBaseClosed();
+  }
+
+  if(trailMode===2){
+    // “hasta cierre largo”
+    if(perCycle.phaseEnabled){
+      // cierre cuando la fase acumulada vuelve a 0° (múltiplo de 360)
+      if(mod360(cumPhaseDeg)===0 && cumPhaseDeg>0){
+        onLongClosure();
+      }
+    } else if(closedGeom){
+      onLongClosure();
+    }
+  }
+}
+function loop(now){ const dt=Math.min(0.05,(now-(loop.t0||now))/1000); loop.t0=now; frame(dt); requestAnimationFrame(loop); }
+function mod360(d){ const m=((d%360)+360)%360; return (m<1 || m>359)?0:m; }
+
+/* ========= Cierres ========= */
+function onCycleBaseClosed(){
+  // rastro de 1 ciclo
+  if(trailMode===1) trace.length=0;
+
+  // aplicar mods por ciclo (fase, amp, zoom, color)
+  const target = firstEnabled();
+  if(!target) return;
+
+  if(perCycle.phaseEnabled){
+    const d=perCycle.phaseStepDeg;
+    target.phaseOffset += deg2rad(d);
+    cumPhaseDeg += d; // para cierre largo
+  }
+  if(perCycle.ampEnabled){
+    target.ampScale *= perCycle.ampScaleStep;
+    // ciclo: si supera 1.6 → reinicia pequeño (0.3)
+    if(target.ampScale > 1.6) target.ampScale = 0.3;
+  }
+  if(perCycle.zoomEnabled){
+    zoom = clamp(zoom*perCycle.zoomStep, 0.5, 3);
+  }
+  if(perCycle.colorEnabled){
+    nextHue();
   }
 }
 
-function loop(now){ const dt=Math.min(0.05,(now-(loop.t0||now))/1000); loop.t0=now; frame(dt); requestAnimationFrame(loop); }
-
-/* ========= Cambios por ciclo ========= */
-function onCycleClosed(){
-  if(trailMode===1) trace.length=0;     // 1 ciclo → limpiar
-  // aplicar mods
-  if(perCycle.phaseEnabled){ const c=order[0]; c.phaseOffset += deg2rad(perCycle.phaseStepDeg); }
-  if(perCycle.ampEnabled){   const c=order[0]; c.ampScale *= perCycle.ampScaleStep; }
-  if(perCycle.zoomEnabled){  zoom = clamp(zoom*perCycle.zoomStep, 0.5, 3); }
-  if(perCycle.colorEnabled){ nextHue(); }
+function onLongClosure(){
+  // cierre largo → limpiar rastro y reanclar inicio
+  trace.length = 0;
+  startPt = null;
+  cumPhaseDeg = 0; // reiniciamos el acumulador para el próximo “macro-ciclo”
 }
 
 /* ========= Color ========= */
 function nextHue(){ const h=(Math.random()*360)|0; currentColor=`hsl(${h},100%,85%)`; }
 
 /* ========= Botones ========= */
-const $ = s=>document.querySelector(s);
 const btnCircles=$('#btnCircles'), btnShape=$('#btnShape'), btnSpeed=$('#btnSpeed'), btnTrail=$('#btnTrail'),
       btnPhase=$('#btnPhase'), btnAmp=$('#btnAmp'), btnZoomC=$('#btnZoomC'), btnColorC=$('#btnColorC'),
-      btnOff1=$('#btnOff1'), btnPlay=$('#btnPlay'), btnSave=$('#btnSave');
+      btnOff1=$('#btnOff1'), btnReset=$('#btnReset'), btnPlay=$('#btnPlay'), btnSave=$('#btnSave');
 
 function setActive(btn,on){ btn.classList.toggle('active', !!on); }
 
 btnCircles.addEventListener('click', ()=>{
   circlesIdx=(circlesIdx+1)%circlesPresets.length;
   circlesN=circlesPresets[circlesIdx];
-  btnCircles.textContent = '●'.repeat(circlesIdx===0?3:(circlesIdx===1?3:3)); // visual fijo
+  btnCircles.textContent = circlesIdx===0?'●':(circlesIdx===1?'●●':'●●●');
 });
 
 btnShape.addEventListener('click', ()=>{
   shapeIdx=(shapeIdx+1)%SHAPES.length;
   btnShape.textContent = SHICON[SHAPES[shapeIdx]];
-  build(SHAPES[shapeIdx]);
+  build(SHAPES[shapeIdx]); // reset de parámetros aplicado en build()
 });
 
 btnSpeed.addEventListener('click', ()=>{
@@ -261,6 +306,7 @@ btnSpeed.addEventListener('click', ()=>{
 });
 
 btnTrail.addEventListener('click', ()=>{
+  // 0 = off, 1 = 1 ciclo, 2 = hasta cierre largo
   trailMode=(trailMode+1)%3;
   showTrace = trailMode!==0;
   btnTrail.textContent = ['◯','◔','∞'][trailMode];
@@ -270,7 +316,7 @@ btnTrail.addEventListener('click', ()=>{
 btnPhase.addEventListener('click', ()=>{ perCycle.phaseEnabled=!perCycle.phaseEnabled; setActive(btnPhase, perCycle.phaseEnabled); });
 btnAmp  .addEventListener('click', ()=>{ perCycle.ampEnabled  =!perCycle.ampEnabled;   setActive(btnAmp,   perCycle.ampEnabled); });
 btnZoomC.addEventListener('click', ()=>{ perCycle.zoomEnabled=!perCycle.zoomEnabled; setActive(btnZoomC, perCycle.zoomEnabled); });
-btnColorC.addEventListener('click',()=>{ perCycle.colorEnabled=!perCycle.colorEnabled; setActive(btnColorC,perCycle.colorEnabled); });
+btnColorC.addEventListener('click',()=>{ perCycle.colorEnabled=!perCycle.colorEnabled; setActive(btnColorC, perCycle.colorEnabled); });
 
 function applyDisableFirst(){
   if(!order.length) return;
@@ -282,20 +328,33 @@ btnOff1.addEventListener('click', ()=>{
   applyDisableFirst();
 });
 
+btnReset.addEventListener('click', ()=>{
+  // restaurar todo a estado limpio de la figura actual
+  order.forEach(c=>{ c.ampScale=1; c.phaseOffset=0; c.modK=0; c.enabled=true; });
+  disableFirst=false; setActive(btnOff1,false);
+  zoom=1; trace.length=0; cumPhaseDeg=0; startPt=null; lastCycle=Math.floor(t);
+  perCycle.phaseEnabled=true; perCycle.ampEnabled=false; perCycle.zoomEnabled=false; perCycle.colorEnabled=true;
+  setActive(btnPhase,true); setActive(btnAmp,false); setActive(btnZoomC,false); setActive(btnColorC,true);
+});
+
 btnPlay.addEventListener('click', ()=>{ running=!running; btnPlay.textContent = running?'❚❚':'▶︎'; });
+
 btnSave.addEventListener('click', ()=>{
   const url=cvs.toDataURL('image/png'); const a=document.createElement('a');
   a.href=url; a.download='orbitas.png'; a.click();
 });
 
-/* ========= Desactivar gestos de zoom/pan manual ========= */
+/* ========= Bloquear zoom/pan manual ========= */
 cvs.addEventListener('touchstart', e=>{ e.preventDefault(); }, {passive:false});
 cvs.addEventListener('touchmove',  e=>{ e.preventDefault(); }, {passive:false});
-cvs.addEventListener('gesturestart', e=>e.preventDefault()); // iOS
+cvs.addEventListener('gesturestart', e=>e.preventDefault());
 
 /* ========= Init ========= */
 build('heart');
 btnShape.textContent=SHICON[SHAPES[shapeIdx]];
+btnCircles.textContent='●●●';          // 6 (preset medio visual = “dos bolitas” → usamos 3 para consistencia)
+btnSpeed.textContent=['🐢','🙂','🐇'][speedIdx];
+btnTrail.textContent='◔';
 setActive(btnPhase,true); setActive(btnColorC,true);
 requestAnimationFrame(loop);
 </script>
