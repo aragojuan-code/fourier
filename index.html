@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover"/>
-<title>Órbitas – minimal 2 filas</title>
+<title>Órbitas — paquetes minimal</title>
 <style>
   :root{
     --bg:#000; --panel:rgba(16,23,34,.92); --ink:#e6eef7; --muted:#9fb3c9; --shadow:rgba(0,0,0,.35);
@@ -11,41 +11,54 @@
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial}
   .wrap{position:fixed;inset:0;display:flex;flex-direction:column}
-  /* barra de botones en 2 filas (wrap) */
-  .top{
-    position:relative; z-index:5; display:flex; flex-wrap:wrap; gap:10px; padding:10px 12px;
-    background:linear-gradient(180deg, rgba(0,0,0,.75), rgba(0,0,0,.2));
-    backdrop-filter:saturate(1.2) blur(4px);
-  }
-  .chip{
-    min-width:44px; height:44px; border-radius:14px; padding:0 10px;
-    background:var(--panel); border:1px solid rgba(230,238,247,.12);
-    display:flex; align-items:center; justify-content:center; gap:6px;
-    box-shadow:0 6px 16px var(--shadow); font-size:18px; cursor:pointer; user-select:none;
-  }
-  .chip small{font-size:12px; color:var(--muted)}
+  /* barra superior: paquetes en 2 filas con etiquetas sutiles */
+  .top{position:relative;z-index:5;display:flex;flex-wrap:wrap;gap:10px;padding:10px 12px;
+       background:linear-gradient(180deg, rgba(0,0,0,.75), rgba(0,0,0,.2));backdrop-filter:saturate(1.2) blur(4px)}
+  .tag{height:24px;padding:0 8px;border-radius:999px;font-size:12px;display:flex;align-items:center;opacity:.8;border:1px solid rgba(230,238,247,.12)}
+  .chip{min-width:44px;height:44px;border-radius:14px;padding:0 10px;background:var(--panel);
+        border:1px solid rgba(230,238,247,.12);display:flex;align-items:center;justify-content:center;gap:6px;
+        box-shadow:0 6px 16px var(--shadow);font-size:18px;cursor:pointer;user-select:none}
+  .chip.small{min-width:36px;height:36px;font-size:14px;border-radius:12px}
   .chip.active{outline:2px solid rgba(255,255,255,.35)}
   .chip:active{transform:scale(.98)}
-  .stage{position:relative; flex:1; overflow:hidden; touch-action:none;}
-  canvas{position:absolute; inset:0; width:100%; height:100%; display:block; background:#000}
+  .sep{flex-basis:100%} /* salto de línea forzado entre paquetes */
+  .stage{position:relative;flex:1;overflow:hidden;touch-action:none}
+  canvas{position:absolute;inset:0;width:100%;height:100%;display:block;background:#000}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="top" id="toolbar">
-    <!-- fila 1 -->
-    <div class="chip" id="btnCircles" title="Círculos 3/6/12">●●●</div>
+    <!-- Paquete 1: Crea tu figura -->
+    <div class="tag">1 · Crea tu figura</div>
     <div class="chip" id="btnShape"   title="Figura">♥︎</div>
-    <div class="chip" id="btnSpeed"   title="Velocidad">🐢</div>
-    <div class="chip" id="btnTrail"   title="Trayectoria (0/1/cierre)">◔</div>
-    <div class="chip" id="btnPhase"   title="Fase por ciclo (+10°)">φ</div>
-    <!-- fila 2 -->
-    <div class="chip" id="btnAmp"     title="Tamaño por ciclo (×1.05)">r</div>
-    <div class="chip" id="btnZoomC"   title="Zoom por ciclo (×1.05)">🔍</div>
-    <div class="chip" id="btnColorC"  title="Color por ciclo">🎨</div>
+    <div class="chip" id="btnCircles" title="Círculos 3/6/12">●●●</div>
     <div class="chip" id="btnOff1"    title="Desactivar 1º círculo"><small>1</small>⛔</div>
+    <div class="chip small" id="btnKm" title="k −">k−</div>
+    <div class="chip small" id="btnKp" title="k +">k+</div>
     <div class="chip" id="btnReset"   title="Reset">↺</div>
+
+    <div class="sep"></div>
+
+    <!-- Paquete 2: Crea tu movimiento -->
+    <div class="tag">2 · Crea tu movimiento</div>
+    <div class="chip" id="btnPhase"   title="Fase por ciclo (+10°)">φ</div>
+    <!-- (tamaño eliminado) -->
+    <div class="chip" id="btnZoomC"   title="Zoom por ciclo (×1.05)">🔍</div>
+
+    <div class="sep"></div>
+
+    <!-- Paquete 3: Activar -->
+    <div class="tag">3 · Activar</div>
     <div class="chip" id="btnPlay"    title="Play/Pausa">❚❚</div>
+    <div class="chip" id="btnTrail"   title="Trayectoria 1/2/3">①</div>
+    <div class="chip" id="btnColorC"  title="Color por ciclo">🎨</div>
+    <div class="chip" id="btnSpeed"   title="Velocidad">🐢</div>
+
+    <div class="sep"></div>
+
+    <!-- Paquete 4: Guardar -->
+    <div class="tag">4 · Guardar</div>
     <div class="chip" id="btnSave"    title="Guardar PNG">💾</div>
   </div>
 
@@ -53,20 +66,19 @@
 </div>
 
 <script>
-/* ========= Estado ========= */
-const cvs = document.getElementById('cv'), ctx = cvs.getContext('2d');
-const dpi = devicePixelRatio||1;
-let W=0,H=0;
+/* ===== Estado base ===== */
+const cvs=document.getElementById('cv'), ctx=cvs.getContext('2d');
+const dpi=devicePixelRatio||1; let W=0,H=0;
 
 let t=0, running=true;
-let zoom=1; // no hay zoom manual
-let showTrace=true, trailMode=1; // 0: off, 1: 1 ciclo, 2: hasta cierre largo
-let trace=[], traceMax=8000;
+let zoom=1; // sin zoom manual
+let trace=[], traceMax=2600; // para nivel 1 (cola móvil)
+let trailMode=1; // 1: cola móvil, 2: 1 ciclo (corta), 3: infinito (no corta)
+let showTrace=true;
 let currentColor='#e6eef7';
 
 let circlesPresets=[3,6,12], circlesIdx=1, circlesN=circlesPresets[circlesIdx];
-let speedPresets=[0.02,0.10,0.25], speedIdx=1, speed=speedPresets[speedIdx];
-
+let speedPresets=[0.02,0.10,0.25], speedIdx=0, speed=speedPresets[speedIdx]; // lenta más lenta
 const SHAPES=['heart','star','triangle','square','pentagon','hexagon','infinity','circle','batman'];
 const SHICON={heart:'♥︎',star:'★',triangle:'▲',square:'■',pentagon:'⬟',hexagon:'⬢',infinity:'∞',circle:'●',batman:'🦇'};
 let shapeIdx=0;
@@ -75,22 +87,21 @@ let points=[], order=[];
 let disableFirst=false;
 
 const perCycle={
-  phaseEnabled:true,  phaseStepDeg:10,               // +10°
-  ampEnabled:false,   ampScaleStep:1.05,             // ×1.05
-  zoomEnabled:false,  zoomStep:1.05,                 // ×1.05
+  phaseEnabled:true, phaseStepDeg:10,
+  zoomEnabled:false, zoomStep:1.05,
   colorEnabled:true
 };
-// control de “cierre largo” por fase acumulada
-let cumPhaseDeg = 0;        // acumula la fase aplicada (mod 360)
-let lastCycle = 0;          // ciclos base
-let startPt = null;         // para cierre geométrico cuando phaseEnabled=false
 
-/* ========= Util ========= */
-const $ = s=>document.querySelector(s);
+// ciclo largo por fase acumulada si phaseEnabled; si no, geométrico
+let cumPhaseDeg=0, lastCycle=0, startPt=null;
+
+/* ===== Utils ===== */
+const $=s=>document.querySelector(s);
 function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
 function deg2rad(d){return d*Math.PI/180}
+function targetCircle(){ for(const c of order){ if(c.enabled) return c; } return null; }
 
-/* ========= Tamaño ========= */
+/* ===== Size ===== */
 function resize(){
   const r=cvs.parentElement.getBoundingClientRect();
   const w=Math.max(1,Math.floor(r.width*dpi));
@@ -98,75 +109,53 @@ function resize(){
   if(Math.abs(cvs.width-w)<1 && Math.abs(cvs.height-h)<8) return;
   W=w;H=h;cvs.width=W;cvs.height=H;
 }
-resize(); addEventListener('resize', ()=>resize(), {passive:true});
+resize(); addEventListener('resize',()=>resize(),{passive:true});
 
-/* ========= Figuras ========= */
-function resamplePolyline(verts,N,close=true){
-  const P=verts.slice(); if(close) P.push(verts[0]);
-  const L=[0]; let sum=0;
-  for(let i=1;i<P.length;i++){ sum+=Math.hypot(P[i][0]-P[i-1][0],P[i][1]-P[i-1][1]); L.push(sum); }
-  const out=[];
-  for(let i=0;i<N;i++){
-    const d=i/N*sum; let j=1; while(j<L.length && L[j]<d) j++;
-    const u=(d-L[j-1])/(L[j]-L[j-1]||1);
-    out.push({x:P[j-1][0]*(1-u)+P[j][0]*u, y:P[j-1][1]*(1-u)+P[j][1]*u});
-  }
+/* ===== Shapes & DFT ===== */
+function resamplePolyline(V,N,close=true){
+  const P=V.slice(); if(close) P.push(V[0]); const L=[0]; let S=0;
+  for(let i=1;i<P.length;i++){ S+=Math.hypot(P[i][0]-P[i-1][0],P[i][1]-P[i-1][1]); L.push(S); }
+  const out=[]; for(let i=0;i<N;i++){ const d=i/N*S; let j=1; while(j<L.length&&L[j]<d) j++; const u=(d-L[j-1])/(L[j]-L[j-1]||1);
+    out.push({x:P[j-1][0]*(1-u)+P[j][0]*u, y:P[j-1][1]*(1-u)+P[j][1]*u}); }
   return out;
 }
-function poly(sides,N){
-  const R=Math.min(W,H)*0.35, cx=W/2, cy=H/2, V=[];
-  for(let i=0;i<sides;i++){ const a=-Math.PI/2 + i*2*Math.PI/sides; V.push([cx+R*Math.cos(a), cy+R*Math.sin(a)]); }
+function poly(s,N){ const R=Math.min(W,H)*0.35, cx=W/2, cy=H/2, V=[];
+  for(let i=0;i<s;i++){ const a=-Math.PI/2+i*2*Math.PI/s; V.push([cx+R*Math.cos(a), cy+R*Math.sin(a)]); }
   return resamplePolyline(V,N,true);
 }
-function star5(N){
-  const cx=W/2, cy=H/2, R=Math.min(W,H)*0.35, r=R*0.4, V=[];
-  for(let i=0;i<10;i++){ const a=-Math.PI/2+i*(2*Math.PI/10); V.push([cx+(i%2? r:R)*Math.cos(a), cy+(i%2? r:R)*Math.sin(a)]); }
+function star5(N){ const cx=W/2, cy=H/2, R=Math.min(W,H)*0.35, r=R*0.4, V=[];
+  for(let i=0;i<10;i++){ const a=-Math.PI/2+i*(2*Math.PI/10); V.push([cx+(i%2?r:R)*Math.cos(a), cy+(i%2?r:R)*Math.sin(a)]); }
   return resamplePolyline(V,N,true);
 }
-function heart(N){
-  const s=Math.min(W,H)*0.03, cx=W/2, cy=H/2, pts=[];
-  for(let i=0;i<N;i++){ const tt=i/N*2*Math.PI;
-    const x=16*Math.pow(Math.sin(tt),3);
-    const y=13*Math.cos(tt)-5*Math.cos(2*tt)-2*Math.cos(3*tt)-Math.cos(4*tt);
-    pts.push({x:cx+x*s,y:cy-y*s}); }
+function heart(N){ const s=Math.min(W,H)*0.03, cx=W/2, cy=H/2, pts=[];
+  for(let i=0;i<N;i++){ const tt=i/N*2*Math.PI; const x=16*Math.pow(Math.sin(tt),3);
+    const y=13*Math.cos(tt)-5*Math.cos(2*tt)-2*Math.cos(3*tt)-Math.cos(4*tt); pts.push({x:cx+x*s,y:cy-y*s}); }
   return pts;
 }
-function infinityC(N){
-  const a=Math.min(W,H)*0.25, cx=W/2, cy=H/2, pts=[];
-  for(let i=0;i<N;i++){ const tt=i/N*2*Math.PI, d=1+Math.sin(tt)*Math.sin(tt);
-    pts.push({x:cx+a*Math.cos(tt)/d, y:cy+a*Math.sin(tt)*Math.cos(tt)/d}); }
+function infinityC(N){ const a=Math.min(W,H)*0.25,cx=W/2,cy=H/2,pts=[];
+  for(let i=0;i<N;i++){ const t=i/N*2*Math.PI,d=1+Math.sin(t)*Math.sin(t); pts.push({x:cx+a*Math.cos(t)/d,y:cy+a*Math.sin(t)*Math.cos(t)/d}); }
   return pts;
 }
-function circle(N){
-  const R=Math.min(W,H)*0.35, cx=W/2, cy=H/2, pts=[];
-  for(let i=0;i<N;i++){ const a=i/N*2*Math.PI; pts.push({x:cx+R*Math.cos(a), y:cy+R*Math.sin(a)}); }
-  return pts;
+function circle(N){ const R=Math.min(W,H)*0.35,cx=W/2,cy=H/2,pts=[];
+  for(let i=0;i<N;i++){ const a=i/N*2*Math.PI; pts.push({x:cx+R*Math.cos(a),y:cy+R*Math.sin(a)}); } return pts;
 }
-function batmanS(N){
-  const base=[[-1,0],[-.8,.22],[-.6,.1],[-.5,.3],[-.4,.1],[-.3,.22],[-.2,.05],[-.15,.22],[-.1,.1],[-.07,.36],[0,.52],[.07,.36],[.1,.1],[.15,.22],[.2,.05],[.3,.22],[.4,.1],[.5,.3],[.6,.1],[.8,.22],[1,0],[.8,-.22],[.6,-.1],[.5,-.3],[.4,-.1],[.3,-.22],[.2,-.05],[.15,-.26],[.1,-.1],[0,-.42],[-.1,-.1],[-.15,-.26],[-.2,-.05],[-.3,-.22],[-.4,-.1],[-.5,-.3],[-.6,-.1],[-.8,-.22]];
-  const s=Math.min(W,H)*0.35, cx=W/2, cy=H/2; const V=base.map(([x,y])=>[cx+x*s, cy+y*s]);
-  return resamplePolyline(V,N,true);
+function batmanS(N){ const base=[[-1,0],[-.8,.22],[-.6,.1],[-.5,.3],[-.4,.1],[-.3,.22],[-.2,.05],[-.15,.22],[-.1,.1],[-.07,.36],[0,.52],[.07,.36],[.1,.1],[.15,.22],[.2,.05],[.3,.22],[.4,.1],[.5,.3],[.6,.1],[.8,.22],[1,0],[.8,-.22],[.6,-.1],[.5,-.3],[.4,-.1],[.3,-.22],[.2,-.05],[.15,-.26],[.1,-.1],[0,-.42],[-.1,-.1],[-.15,-.26],[-.2,-.05],[-.3,-.22],[-.4,-.1],[-.5,-.3],[-.6,-.1],[-.8,-.22]];
+  const s=Math.min(W,H)*0.35,cx=W/2,cy=H/2,V=base.map(([x,y])=>[cx+x*s,cy+y*s]); return resamplePolyline(V,N,true);
 }
-
-/* ========= DFT ========= */
 function dft(pts){
-  const N=pts.length;
-  let cx=0,cy=0; for(const p of pts){cx+=p.x; cy+=p.y} cx/=N; cy/=N;
-  const z=pts.map(p=>({re:p.x-cx, im:p.y-cy}));
-  const C=[];
-  for(let k=-Math.floor(N/2); k<=Math.floor(N/2); k++){
-    let re=0, im=0;
-    for(let n=0;n<N;n++){ const a=-2*Math.PI*k*n/N;
-      re += z[n].re*Math.cos(a) - z[n].im*Math.sin(a);
-      im += z[n].re*Math.sin(a) + z[n].im*Math.cos(a); }
+  const N=pts.length; let cx=0,cy=0; for(const p of pts){cx+=p.x;cy+=p.y} cx/=N; cy/=N;
+  const z=pts.map(p=>({re:p.x-cx,im:p.y-cy})); const C=[];
+  for(let k=-Math.floor(N/2);k<=Math.floor(N/2);k++){
+    let re=0,im=0; for(let n=0;n<N;n++){ const a=-2*Math.PI*k*n/N;
+      re+=z[n].re*Math.cos(a)-z[n].im*Math.sin(a); im+=z[n].re*Math.sin(a)+z[n].im*Math.cos(a); }
     re/=N; im/=N;
-    C.push({id:k+N, k, amp:Math.hypot(re,im), phase:Math.atan2(im,re), cx, cy,
-            enabled:true, modK:0, ampScale:1, phaseOffset:0});
+    C.push({id:k+N,k,amp:Math.hypot(re,im),phase:Math.atan2(im,re),cx,cy,enabled:true,modK:0,ampScale:1,phaseOffset:0});
   }
   return C.sort((a,b)=>b.amp-a.amp);
 }
 
-/* ========= Build & helpers ========= */
+/* ===== Build ===== */
+function applyDisableFirst(){ if(!order.length) return; order.forEach((c,i)=> c.enabled = (i!==0) || !disableFirst); }
 function build(shape='heart'){
   const N=1024;
   points = shape==='heart'?heart(N):
@@ -177,16 +166,12 @@ function build(shape='heart'){
            shape==='hexagon'?poly(6,N):
            shape==='infinity'?infinityC(N):
            shape==='circle'?circle(N):batmanS(N);
-  order = dft(points);
-  t=0; trace.length=0; lastCycle=0; startPt=null; cumPhaseDeg=0;
+  order=dft(points);
+  t=0; trace.length=0; lastCycle=0; startPt=null; cumPhaseDeg=0; zoom=1;
   applyDisableFirst();
 }
-function firstEnabled(){
-  for(const c of order){ if(c.enabled) return c; }
-  return null;
-}
 
-/* ========= Animación ========= */
+/* ===== Animación ===== */
 function frame(dt){
   if(running) t += dt*speed;
 
@@ -194,8 +179,8 @@ function frame(dt){
   ctx.clearRect(0,0,W,H);
 
   const chosen = order.filter(c=>c.enabled).slice(0,circlesN);
-  let x=(order[0]?.cx||W/2), y=(order[0]?.cy||H/2);
 
+  let x=(order[0]?.cx||W/2), y=(order[0]?.cy||H/2);
   ctx.lineWidth=1*dpi;
   for(const c of chosen){
     const freq=c.k+c.modK, phase=c.phase+c.phaseOffset, amp=c.amp*c.ampScale*zoom;
@@ -208,155 +193,114 @@ function frame(dt){
 
   if(showTrace){
     trace.push({x,y,color:currentColor});
-    if(trace.length>traceMax) trace.splice(0, trace.length-traceMax);
+    // Modo 1 (cola móvil): mantén ventana deslizante
+    if(trailMode===1 && trace.length>traceMax) trace.splice(0, trace.length-traceMax);
+    // Modo 2 y 3: no recortamos aquí; se gestionan en cierre
+  }
+  // dibujar trazo
+  if(showTrace){
     ctx.lineWidth=2.2*dpi;
-    for(let i=1;i<trace.length;i++){
-      ctx.strokeStyle=trace[i].color;
-      ctx.beginPath(); ctx.moveTo(trace[i-1].x,trace[i-1].y); ctx.lineTo(trace[i].x,trace[i].y); ctx.stroke();
-    }
+    for(let i=1;i<trace.length;i++){ ctx.strokeStyle=trace[i].color; ctx.beginPath(); ctx.moveTo(trace[i-1].x,trace[i-1].y); ctx.lineTo(trace[i].x,trace[i].y); ctx.stroke(); }
   }
   ctx.fillStyle=currentColor; ctx.beginPath(); ctx.arc(x,y,2.6*dpi,0,Math.PI*2); ctx.fill();
 
-  // gestión de ciclos
-  const cycleNow = Math.floor(t);
-  const closedBase = cycleNow > lastCycle;
-  const closedGeom = startPt && (Math.hypot(x-startPt.x,y-startPt.y) < 2.5*dpi) && (t-lastCycle>0.6);
+  // ciclos base
+  const cyc=Math.floor(t);
+  if(cyc>lastCycle){ lastCycle=cyc; onCycleBaseClosed(); }
 
-  if(!startPt) startPt = {x,y};
-
-  if(closedBase){
-    lastCycle = cycleNow;
-    onCycleBaseClosed();
-  }
-
-  if(trailMode===2){
-    // “hasta cierre largo”
-    if(perCycle.phaseEnabled){
-      // cierre cuando la fase acumulada vuelve a 0° (múltiplo de 360)
-      if(mod360(cumPhaseDeg)===0 && cumPhaseDeg>0){
-        onLongClosure();
-      }
-    } else if(closedGeom){
-      onLongClosure();
-    }
-  }
+  // cierre largo (solo para modo 3 si quisieras limpiar; ahora NO limpiamos)
+  if(!startPt) startPt={x,y};
+  const closedGeom = (Math.hypot(x-startPt.x, y-startPt.y)<2.5*dpi) && (t-lastCycle>0.6);
+  if(closedGeom){ startPt={x,y}; /* no limpiar en nivel 3 */ }
 }
-function loop(now){ const dt=Math.min(0.05,(now-(loop.t0||now))/1000); loop.t0=now; frame(dt); requestAnimationFrame(loop); }
-function mod360(d){ const m=((d%360)+360)%360; return (m<1 || m>359)?0:m; }
+let last=performance.now();
+function loop(now){ const dt=Math.min(0.05,(now-last)/1000); last=now; frame(dt); requestAnimationFrame(loop); }
 
-/* ========= Cierres ========= */
+/* ===== Cierre de ciclo base (aplicar per-cycle) ===== */
 function onCycleBaseClosed(){
-  // rastro de 1 ciclo
-  if(trailMode===1) trace.length=0;
-
-  // aplicar mods por ciclo (fase, amp, zoom, color)
-  const target = firstEnabled();
-  if(!target) return;
-
-  if(perCycle.phaseEnabled){
-    const d=perCycle.phaseStepDeg;
-    target.phaseOffset += deg2rad(d);
-    cumPhaseDeg += d; // para cierre largo
+  // Trayectoria:
+  if(trailMode===2){ // 1 ciclo → cortar en cierre
+    trace.length=0;
   }
-  if(perCycle.ampEnabled){
-    target.ampScale *= perCycle.ampScaleStep;
-    // ciclo: si supera 1.6 → reinicia pequeño (0.3)
-    if(target.ampScale > 1.6) target.ampScale = 0.3;
-  }
-  if(perCycle.zoomEnabled){
-    zoom = clamp(zoom*perCycle.zoomStep, 0.5, 3);
-  }
-  if(perCycle.colorEnabled){
-    nextHue();
-  }
+  // per-cycle mods
+  const c = targetCircle(); if(!c) return;
+  if(perCycle.phaseEnabled){ c.phaseOffset += deg2rad(perCycle.phaseStepDeg); cumPhaseDeg += perCycle.phaseStepDeg; }
+  if(perCycle.zoomEnabled){ zoom = clamp(zoom*perCycle.zoomStep, 0.5, 3); }
+  if(perCycle.colorEnabled){ nextHue(); }
 }
 
-function onLongClosure(){
-  // cierre largo → limpiar rastro y reanclar inicio
-  trace.length = 0;
-  startPt = null;
-  cumPhaseDeg = 0; // reiniciamos el acumulador para el próximo “macro-ciclo”
-}
-
-/* ========= Color ========= */
+/* ===== Color ===== */
 function nextHue(){ const h=(Math.random()*360)|0; currentColor=`hsl(${h},100%,85%)`; }
 
-/* ========= Botones ========= */
-const btnCircles=$('#btnCircles'), btnShape=$('#btnShape'), btnSpeed=$('#btnSpeed'), btnTrail=$('#btnTrail'),
-      btnPhase=$('#btnPhase'), btnAmp=$('#btnAmp'), btnZoomC=$('#btnZoomC'), btnColorC=$('#btnColorC'),
-      btnOff1=$('#btnOff1'), btnReset=$('#btnReset'), btnPlay=$('#btnPlay'), btnSave=$('#btnSave');
+/* ===== Controles ===== */
+const btnShape=$('#btnShape'), btnCircles=$('#btnCircles'), btnOff1=$('#btnOff1'),
+      btnKm=$('#btnKm'), btnKp=$('#btnKp'), btnReset=$('#btnReset'),
+      btnPhase=$('#btnPhase'), btnZoomC=$('#btnZoomC'),
+      btnPlay=$('#btnPlay'), btnTrail=$('#btnTrail'), btnColorC=$('#btnColorC'), btnSpeed=$('#btnSpeed');
 
 function setActive(btn,on){ btn.classList.toggle('active', !!on); }
 
+btnShape.addEventListener('click', ()=>{ shapeIdx=(shapeIdx+1)%SHAPES.length; btnShape.textContent=SHICON[SHAPES[shapeIdx]]; build(SHAPES[shapeIdx]); });
+
 btnCircles.addEventListener('click', ()=>{
-  circlesIdx=(circlesIdx+1)%circlesPresets.length;
-  circlesN=circlesPresets[circlesIdx];
+  circlesIdx=(circlesIdx+1)%circlesPresets.length; circlesN=circlesPresets[circlesIdx];
+  // icono: 3→●, 6→●●, 12→●●●
   btnCircles.textContent = circlesIdx===0?'●':(circlesIdx===1?'●●':'●●●');
 });
 
-btnShape.addEventListener('click', ()=>{
-  shapeIdx=(shapeIdx+1)%SHAPES.length;
-  btnShape.textContent = SHICON[SHAPES[shapeIdx]];
-  build(SHAPES[shapeIdx]); // reset de parámetros aplicado en build()
+btnOff1.addEventListener('click', ()=>{ disableFirst=!disableFirst; setActive(btnOff1,disableFirst); applyDisableFirst(); });
+
+btnKm.addEventListener('click', ()=>{ const c=targetCircle(); if(c){ c.modK -= 1; t=0; trace.length=0; } });
+btnKp.addEventListener('click', ()=>{ const c=targetCircle(); if(c){ c.modK += 1; t=0; trace.length=0; } });
+
+btnReset.addEventListener('click', ()=>{
+  order.forEach(c=>{ c.ampScale=1; c.phaseOffset=0; c.modK=0; c.enabled=true; });
+  disableFirst=false; setActive(btnOff1,false);
+  zoom=1; t=0; trace.length=0; startPt=null; lastCycle=0; cumPhaseDeg=0;
+  perCycle.phaseEnabled=true; perCycle.zoomEnabled=false; perCycle.colorEnabled=true;
+  setActive(btnPhase,true); setActive(btnZoomC,false); setActive(btnColorC,true);
 });
+
+btnPhase.addEventListener('click', ()=>{ perCycle.phaseEnabled=!perCycle.phaseEnabled; setActive(btnPhase,perCycle.phaseEnabled); });
+
+btnZoomC.addEventListener('click', ()=>{ perCycle.zoomEnabled=!perCycle.zoomEnabled; setActive(btnZoomC,perCycle.zoomEnabled); });
+
+btnPlay.addEventListener('click', ()=>{ running=!running; btnPlay.textContent=running?'❚❚':'▶︎'; });
+
+btnTrail.addEventListener('click', ()=>{
+  trailMode = (trailMode%3)+1; // 1→2→3→1
+  btnTrail.textContent = ['①','②','③'][trailMode-1];
+  showTrace = true;
+  if(trailMode===2) trace.length=0; // solo nivel 2 corta en cierre
+});
+
+btnColorC.addEventListener('click', ()=>{ perCycle.colorEnabled=!perCycle.colorEnabled; setActive(btnColorC,perCycle.colorEnabled); });
 
 btnSpeed.addEventListener('click', ()=>{
   speedIdx=(speedIdx+1)%speedPresets.length; speed=speedPresets[speedIdx];
-  btnSpeed.textContent = ['🐢','🙂','🐇'][speedIdx];
+  btnSpeed.textContent=['🐢','🙂','🐇'][speedIdx];
 });
 
-btnTrail.addEventListener('click', ()=>{
-  // 0 = off, 1 = 1 ciclo, 2 = hasta cierre largo
-  trailMode=(trailMode+1)%3;
-  showTrace = trailMode!==0;
-  btnTrail.textContent = ['◯','◔','∞'][trailMode];
-  if(trailMode===0) trace.length=0;
+/* ===== Guardar ===== */
+$('#btnSave').addEventListener('click', ()=>{
+  const a=document.createElement('a'); a.href=cvs.toDataURL('image/png'); a.download='orbitas.png'; a.click();
 });
 
-btnPhase.addEventListener('click', ()=>{ perCycle.phaseEnabled=!perCycle.phaseEnabled; setActive(btnPhase, perCycle.phaseEnabled); });
-btnAmp  .addEventListener('click', ()=>{ perCycle.ampEnabled  =!perCycle.ampEnabled;   setActive(btnAmp,   perCycle.ampEnabled); });
-btnZoomC.addEventListener('click', ()=>{ perCycle.zoomEnabled=!perCycle.zoomEnabled; setActive(btnZoomC, perCycle.zoomEnabled); });
-btnColorC.addEventListener('click',()=>{ perCycle.colorEnabled=!perCycle.colorEnabled; setActive(btnColorC, perCycle.colorEnabled); });
-
-function applyDisableFirst(){
-  if(!order.length) return;
-  order.forEach((c,i)=> c.enabled = (i!==0) || !disableFirst);
-}
-btnOff1.addEventListener('click', ()=>{
-  disableFirst = !disableFirst;
-  setActive(btnOff1, disableFirst);
-  applyDisableFirst();
-});
-
-btnReset.addEventListener('click', ()=>{
-  // restaurar todo a estado limpio de la figura actual
-  order.forEach(c=>{ c.ampScale=1; c.phaseOffset=0; c.modK=0; c.enabled=true; });
-  disableFirst=false; setActive(btnOff1,false);
-  zoom=1; trace.length=0; cumPhaseDeg=0; startPt=null; lastCycle=Math.floor(t);
-  perCycle.phaseEnabled=true; perCycle.ampEnabled=false; perCycle.zoomEnabled=false; perCycle.colorEnabled=true;
-  setActive(btnPhase,true); setActive(btnAmp,false); setActive(btnZoomC,false); setActive(btnColorC,true);
-});
-
-btnPlay.addEventListener('click', ()=>{ running=!running; btnPlay.textContent = running?'❚❚':'▶︎'; });
-
-btnSave.addEventListener('click', ()=>{
-  const url=cvs.toDataURL('image/png'); const a=document.createElement('a');
-  a.href=url; a.download='orbitas.png'; a.click();
-});
-
-/* ========= Bloquear zoom/pan manual ========= */
+/* ===== Bloquear zoom/pan manual ===== */
 cvs.addEventListener('touchstart', e=>{ e.preventDefault(); }, {passive:false});
 cvs.addEventListener('touchmove',  e=>{ e.preventDefault(); }, {passive:false});
 cvs.addEventListener('gesturestart', e=>e.preventDefault());
 
-/* ========= Init ========= */
-build('heart');
-btnShape.textContent=SHICON[SHAPES[shapeIdx]];
-btnCircles.textContent='●●●';          // 6 (preset medio visual = “dos bolitas” → usamos 3 para consistencia)
-btnSpeed.textContent=['🐢','🙂','🐇'][speedIdx];
-btnTrail.textContent='◔';
-setActive(btnPhase,true); setActive(btnColorC,true);
-requestAnimationFrame(loop);
+/* ===== Init ===== */
+function init(){
+  build('heart');
+  btnShape.textContent=SHICON[SHAPES[shapeIdx]];
+  btnCircles.textContent='●●'; // 6 por defecto → dos puntos
+  btnSpeed.textContent='🐢';    // lenta (más lenta)
+  btnTrail.textContent='①';    // cola móvil
+  setActive(btnPhase,true); setActive(btnColorC,true);
+}
+requestAnimationFrame(loop); init();
 </script>
 </body>
 </html>
